@@ -158,6 +158,28 @@ public class CampCommand implements CommandExecutor {
             return true;
         }
 
+        if (sub.equals("tpa")) {
+            if (args.length < 2) {
+                plugin.lang().send(p, "state.tpa-usage");
+                return true;
+            }
+
+            String action = args[1].toLowerCase();
+            if (action.equals("accept") || action.equals("deny")) {
+                plugin.state().respondTeleportRequest(p, action.equals("accept"));
+                return true;
+            }
+
+            Player target = Bukkit.getPlayer(args[1]);
+            if (target == null) {
+                plugin.lang().send(p, "state.tpa-target-offline", Map.of("player", args[1]));
+                return true;
+            }
+
+            plugin.state().requestTeleportToPlayer(p, target);
+            return true;
+        }
+
         if (sub.equals("newgovernor") || sub.equals("setgovernor")) {
             if (args.length < 3) {
                 plugin.lang().send(p, "state.newgovernor-usage");

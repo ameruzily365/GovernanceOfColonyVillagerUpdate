@@ -40,6 +40,8 @@ public class StateManager {
     private final Map<UUID, TaxRecord> taxRecords = new ConcurrentHashMap<>();
     private final Map<UUID, PermissionAttachment> ideologyAttachments = new ConcurrentHashMap<>();
     private final Map<String, Long> capitalMoveCooldowns = new ConcurrentHashMap<>();
+    private final Map<UUID, TpaRequest> pendingTeleports = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> teleportCooldowns = new ConcurrentHashMap<>();
     private final AtomicInteger idCounter = new AtomicInteger(1);
 
     private BukkitTask taxTask;
@@ -2308,6 +2310,179 @@ public class StateManager {
         }
     }
 
+    public void requestTeleportToPlayer(Player requester, Player target) {
+        if (requester == null || target == null) {
+            return;
+        }
+
+        if (requester.getUniqueId().equals(target.getUniqueId())) {
+            plugin.lang().send(requester, "state.tpa-self");
+            return;
+        }
+
+        String requesterState = getStateName(requester);
+        if (requesterState == null) {
+            plugin.lang().send(requester, "camp.not-found");
+            return;
+        }
+
+        String targetState = getStateName(target);
+        if (targetState == null || !requesterState.equalsIgnoreCase(targetState)) {
+            plugin.lang().send(requester, "state.tpa-other-state", Map.of("player", safePlayerName(target.getUniqueId(), target.getName())));
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        long cooldown = getTeleportCooldownMillis();
+        if (cooldown > 0) {
+            long last = teleportCooldowns.getOrDefault(requester.getUniqueId(), 0L);
+            long remaining = cooldown - (now - last);
+            if (remaining > 0) {
+                plugin.lang().send(requester, "state.tpa-cooldown", Map.of(
+                        "time", plugin.war().formatDuration(remaining)
+                ));
+                return;
+            }
+        }
+
+        TpaRequest existing = pendingTeleports.get(target.getUniqueId());
+        if (existing != null) {
+            if (!isTeleportRequestExpired(existing)) {
+                if (existing.requester.equals(requester.getUniqueId())) {
+                    long timeout = getTeleportTimeoutMillis();
+                    long remaining = timeout <= 0 ? 0 : Math.max(0L, timeout - (now - existing.createdAt));
+                    plugin.lang().send(requester, "state.tpa-pending", Map.of(
+                            "player", safePlayerName(target.getUniqueId(), target.getName()),
+                            "time", plugin.war().formatDuration(remaining)
+                    ));
+                } else {
+                    plugin.lang().send(requester, "state.tpa-target-busy", Map.of(
+                            "player", safePlayerName(target.getUniqueId(), target.getName())
+                    ));
+                }
+                return;
+            }
+            pendingTeleports.remove(target.getUniqueId());
+        }
+
+        String timeoutText = plugin.war().formatDuration(getTeleportTimeoutMillis());
+        String displayTime = timeoutText.isEmpty()
+                ? plugin.lang().messageOrDefault("state.request-time-unlimited", "不限")
+                : timeoutText;
+
+        pendingTeleports.put(target.getUniqueId(), new TpaRequest(requester.getUniqueId(), target.getUniqueId(), now));
+        teleportCooldowns.put(requester.getUniqueId(), now);
+
+        plugin.lang().send(requester, "state.tpa-request-sent", Map.of(
+                "player", safePlayerName(target.getUniqueId(), target.getName()),
+                "time", displayTime
+        ));
+        plugin.lang().send(target, "state.tpa-request-received", Map.of(
+                "player", safePlayerName(requester.getUniqueId(), requester.getName()),
+                "time", displayTime
+        ));
+    }
+
+    public void respondTeleportRequest(Player target, boolean accept) {
+        if (target == null) {
+            return;
+        }
+
+        TpaRequest request = pendingTeleports.get(target.getUniqueId());
+        if (request == null) {
+            plugin.lang().send(target, "state.tpa-no-request");
+            return;
+        }
+
+        if (isTeleportRequestExpired(request)) {
+            pendingTeleports.remove(target.getUniqueId());
+            plugin.lang().send(target, "state.tpa-request-expired");
+            return;
+        }
+
+        Player requester = Bukkit.getPlayer(request.requester);
+        if (requester == null) {
+            pendingTeleports.remove(target.getUniqueId());
+            plugin.lang().send(target, "state.tpa-requester-offline");
+            return;
+        }
+
+        String targetState = getStateName(target);
+        String requesterState = getStateName(requester);
+        if (targetState == null || requesterState == null || !targetState.equalsIgnoreCase(requesterState)) {
+            pendingTeleports.remove(target.getUniqueId());
+            plugin.lang().send(target, "state.tpa-state-changed");
+            plugin.lang().send(requester, "state.tpa-state-changed");
+            return;
+        }
+
+        pendingTeleports.remove(target.getUniqueId());
+
+        if (!accept) {
+            plugin.lang().send(target, "state.tpa-deny-confirm", Map.of(
+                    "player", safePlayerName(requester.getUniqueId(), requester.getName())
+            ));
+            plugin.lang().send(requester, "state.tpa-denied", Map.of(
+                    "player", safePlayerName(target.getUniqueId(), target.getName())
+            ));
+            return;
+        }
+
+        long warmupMs = getTeleportWarmupMillis();
+        String warmupText = plugin.war().formatDuration(warmupMs);
+
+        plugin.lang().send(target, "state.tpa-accept", Map.of(
+                "player", safePlayerName(requester.getUniqueId(), requester.getName()),
+                "time", warmupText
+        ));
+        plugin.lang().send(requester, "state.tpa-wait", Map.of(
+                "player", safePlayerName(target.getUniqueId(), target.getName()),
+                "time", warmupText
+        ));
+
+        Runnable teleportTask = () -> {
+            Player liveRequester = Bukkit.getPlayer(request.requester);
+            Player liveTarget = Bukkit.getPlayer(request.target);
+
+            if (liveRequester == null || liveTarget == null) {
+                Player online = liveRequester != null ? liveRequester : liveTarget;
+                if (online != null) {
+                    plugin.lang().send(online, "state.tpa-teleport-cancelled", Map.of(
+                            "reason", plugin.lang().messageOrDefault("state.tpa-reason-offline", "目标玩家不在线")
+                    ));
+                }
+                return;
+            }
+
+            String latestRequesterState = getStateName(liveRequester);
+            String latestTargetState = getStateName(liveTarget);
+            if (latestRequesterState == null || latestTargetState == null || !latestRequesterState.equalsIgnoreCase(latestTargetState)) {
+                plugin.lang().send(liveRequester, "state.tpa-teleport-cancelled", Map.of(
+                        "reason", plugin.lang().messageOrDefault("state.tpa-reason-state", "不在同一政权")
+                ));
+                return;
+            }
+
+            teleportCooldowns.put(liveRequester.getUniqueId(), System.currentTimeMillis());
+            liveRequester.teleport(liveTarget.getLocation());
+            plugin.lang().send(liveRequester, "state.tpa-teleport-success", Map.of(
+                    "player", safePlayerName(liveTarget.getUniqueId(), liveTarget.getName())
+            ));
+        };
+
+        if (warmupMs <= 0) {
+            teleportTask.run();
+        } else {
+            long ticks = Math.max(1L, warmupMs / 50L);
+            Bukkit.getScheduler().runTaskLater(plugin, teleportTask, ticks);
+        }
+    }
+
+    private boolean isTeleportRequestExpired(TpaRequest request) {
+        long timeout = getTeleportTimeoutMillis();
+        return timeout > 0 && System.currentTimeMillis() - request.createdAt > timeout;
+    }
+
     private boolean isInviteExpired(InviteData invite) {
         if (invite == null) {
             return true;
@@ -2723,6 +2898,30 @@ public class StateManager {
         return seconds * 1000L;
     }
 
+    private long getTeleportTimeoutMillis() {
+        long seconds = plugin.getConfig().getLong("tpa.response-timeout-seconds", 60L);
+        if (seconds <= 0) {
+            return 0L;
+        }
+        return seconds * 1000L;
+    }
+
+    private long getTeleportCooldownMillis() {
+        long seconds = plugin.getConfig().getLong("tpa.cooldown-seconds", 120L);
+        if (seconds <= 0) {
+            return 0L;
+        }
+        return seconds * 1000L;
+    }
+
+    private long getTeleportWarmupMillis() {
+        long seconds = plugin.getConfig().getLong("tpa.warmup-seconds", 3L);
+        if (seconds <= 0) {
+            return 0L;
+        }
+        return seconds * 1000L;
+    }
+
     public void kickMember(Player captain, Player target) {
         String state = playerState.get(captain.getUniqueId());
         if (state == null) return;
@@ -2825,6 +3024,10 @@ public class StateManager {
         if (joinTimeout > 0) {
             pendingJoinRequests.entrySet().removeIf(entry -> now - entry.getValue().time > joinTimeout);
         }
+        long teleportTimeout = getTeleportTimeoutMillis();
+        if (teleportTimeout > 0) {
+            pendingTeleports.entrySet().removeIf(entry -> now - entry.getValue().createdAt > teleportTimeout);
+        }
     }
 
     public void loadFromCampInfo(YamlConfiguration yaml) {
@@ -2833,6 +3036,8 @@ public class StateManager {
         pendingCampPlacement.clear();
         pendingInvites.clear();
         pendingJoinRequests.clear();
+        pendingTeleports.clear();
+        teleportCooldowns.clear();
         onlineProgress.clear();
         taxRecords.clear();
         capitalMoveCooldowns.clear();
@@ -4377,6 +4582,18 @@ public class StateManager {
             this.playerName = playerName;
             this.state = state;
             this.time = time;
+        }
+    }
+
+    public static class TpaRequest {
+        private final UUID requester;
+        private final UUID target;
+        private final long createdAt;
+
+        public TpaRequest(UUID requester, UUID target, long createdAt) {
+            this.requester = requester;
+            this.target = target;
+            this.createdAt = createdAt;
         }
     }
 
