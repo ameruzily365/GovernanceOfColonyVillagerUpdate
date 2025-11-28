@@ -213,6 +213,15 @@ public class CampInfoManager {
                     campSection.set("fuel-level", camp.getFuelLevel());
                     campSection.set("heal-level", camp.getHealLevel());
                     campSection.set("fatigue-level", camp.getFatigueLevel());
+                    campSection.set("storage-level", camp.getStorageLevel());
+                    campSection.set("efficiency-level", camp.getEfficiencyLevel());
+                    campSection.set("stored-money", camp.getStoredMoney());
+                    campSection.set("max-stored-money", camp.getMaxStoredMoney());
+                    campSection.set("max-stored-items", camp.getMaxStoredItems());
+                    campSection.set("last-production", camp.getLastProductionAt());
+                    if (!camp.getStoredItems().isEmpty()) {
+                        campSection.createSection("stored-items", camp.getStoredItems());
+                    }
                 }
             }
         }

@@ -5,7 +5,7 @@
 
     <groupId>dev.ameruzily</groupId>
     <artifactId>governanceofcolony</artifactId>
-    <version>0.9.16</version>
+    <version>1.0.0</version>
     <name>GovernanceOfColony</name>
     <description>State-based camp &amp; war system</description>
     <packaging>jar</packaging>

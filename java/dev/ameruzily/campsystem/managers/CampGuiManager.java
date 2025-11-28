@@ -157,6 +157,38 @@ public class CampGuiManager implements Listener {
         handleMoveResult(player, result, camp.getSectorName());
     }
 
+    private void handleCollectProduction(Player player, Camp camp) {
+        if (player == null || camp == null) {
+            return;
+        }
+        if (!ensureSameState(player, camp)) {
+            return;
+        }
+        WarManager.ProductionClaimResult result = plugin.war().claimProduction(player, camp);
+        switch (result.getStatus()) {
+            case NO_PERMISSION -> plugin.lang().send(player, "state.sector-no-permission");
+            case EMPTY -> plugin.lang().send(player, "state.production-empty");
+            case NO_ECONOMY -> plugin.lang().send(player, "state.production-no-economy");
+            case SUCCESS -> {
+                Map<String, String> vars = new HashMap<>();
+                vars.put("money", plugin.state().formatMoney(result.getMoney()));
+                vars.put("items", formatProductionItems(result.getItems()));
+                plugin.lang().send(player, "state.production-claimed", vars);
+            }
+        }
+    }
+
+    private String formatProductionItems(Map<String, Integer> items) {
+        if (items == null || items.isEmpty()) {
+            return plugin.lang().messageOrDefault("state.repair-items-none", "无");
+        }
+        List<String> parts = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : items.entrySet()) {
+            parts.add(entry.getKey() + " x" + entry.getValue());
+        }
+        return String.join(", ", parts);
+    }
+
     private void handleMoveResult(Player player, StateManager.MoveSectorResult result, String fallbackSector) {
         if (player == null || result == null) {
             return;
@@ -698,6 +730,10 @@ public class CampGuiManager implements Listener {
             openUpgrades(player, camp);
             return;
         }
+        if (action.equalsIgnoreCase("collect:production")) {
+            handleCollectProduction(player, camp);
+            return;
+        }
         if (action.equalsIgnoreCase("rename:sector")) {
             handleRenameSector(player, camp);
             return;
@@ -842,6 +878,11 @@ public class CampGuiManager implements Listener {
         if (camp == null) {
             return map;
         }
+        map.put("%production_money%", format.format(camp.getStoredMoney()));
+        map.put("%production_money_max%", format.format(camp.getMaxStoredMoney()));
+        map.put("%production_items%", String.valueOf(camp.getStoredItemTotal()));
+        map.put("%production_items_max%", String.valueOf(camp.getMaxStoredItems()));
+        map.put("%production_interval%", plugin.war().formatDuration(camp.getProductionIntervalMs()));
         for (WarManager.CampUpgradeType type : WarManager.CampUpgradeType.values()) {
             String key = type.configKey();
             int current = switch (type) {
@@ -849,6 +890,8 @@ public class CampGuiManager implements Listener {
                 case FUEL -> camp.getFuelLevel();
                 case HEAL -> camp.getHealLevel();
                 case FATIGUE -> camp.getFatigueLevel();
+                case STORAGE -> camp.getStorageLevel();
+                case EFFICIENCY -> camp.getEfficiencyLevel();
             };
             WarManager.UpgradeTree tree = plugin.war().getUpgradeTree(type);
             WarManager.UpgradeTier next = plugin.war().getNextTier(camp, type);
@@ -867,6 +910,9 @@ public class CampGuiManager implements Listener {
                 map.put(prefix + "next_maxfuel%", disabledText);
                 map.put(prefix + "next_healrate%", disabledText);
                 map.put(prefix + "next_fatigue%", disabledText);
+                map.put(prefix + "next_storage_money%", disabledText);
+                map.put(prefix + "next_storage_items%", disabledText);
+                map.put(prefix + "next_interval%", disabledText);
                 map.put(prefix + "cost%", "0");
                 map.put(prefix + "items%", plugin.lang().messageOrDefault("state.repair-items-none", "无"));
                 continue;
@@ -878,6 +924,9 @@ public class CampGuiManager implements Listener {
                 map.put(prefix + "next_maxfuel%", maxText);
                 map.put(prefix + "next_healrate%", maxText);
                 map.put(prefix + "next_fatigue%", maxText);
+                map.put(prefix + "next_storage_money%", maxText);
+                map.put(prefix + "next_storage_items%", maxText);
+                map.put(prefix + "next_interval%", maxText);
                 map.put(prefix + "cost%", "0");
                 map.put(prefix + "items%", plugin.lang().messageOrDefault("state.repair-items-none", "无"));
                 continue;
@@ -907,6 +956,21 @@ public class CampGuiManager implements Listener {
                 map.put(prefix + "next_fatigue%", String.valueOf(next.fatigueAmplifier()));
             } else {
                 map.put(prefix + "next_fatigue%", disabledText);
+            }
+            if (next.storedMoneyCap() != null) {
+                map.put(prefix + "next_storage_money%", format.format(next.storedMoneyCap()));
+            } else {
+                map.put(prefix + "next_storage_money%", disabledText);
+            }
+            if (next.storedItemCap() != null) {
+                map.put(prefix + "next_storage_items%", String.valueOf(next.storedItemCap()));
+            } else {
+                map.put(prefix + "next_storage_items%", disabledText);
+            }
+            if (next.productionIntervalSeconds() != null) {
+                map.put(prefix + "next_interval%", plugin.war().formatDuration(next.productionIntervalSeconds() * 1000L));
+            } else {
+                map.put(prefix + "next_interval%", disabledText);
             }
         }
         return map;
@@ -940,7 +1004,12 @@ public class CampGuiManager implements Listener {
                 .replace("%fuel%", snapshotValue.amount())
                 .replace("%maxfuel%", String.valueOf(snapshotValue.maxFuel()))
                 .replace("%fuel_time%", snapshotValue.totalDuration())
-                .replace("%fuel_unit_time%", snapshotValue.unitDuration());
+                .replace("%fuel_unit_time%", snapshotValue.unitDuration())
+                .replace("%production_money%", format.format(camp.getStoredMoney()))
+                .replace("%production_money_max%", format.format(camp.getMaxStoredMoney()))
+                .replace("%production_items%", String.valueOf(camp.getStoredItemTotal()))
+                .replace("%production_items_max%", String.valueOf(camp.getMaxStoredItems()))
+                .replace("%production_interval%", plugin.war().formatDuration(camp.getProductionIntervalMs()));
         if (extras != null) {
             for (Map.Entry<String, String> entry : extras.entrySet()) {
                 value = value.replace(entry.getKey(), entry.getValue());
