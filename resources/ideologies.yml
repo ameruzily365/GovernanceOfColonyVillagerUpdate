@@ -1,0 +1,82 @@
+ideologies:
+  revolutionary_contract_theory:
+    display_name: "革命契约论"
+    permission: "ideology.rct"
+  new_world_identity_doctrine:
+    display_name: "新世界认同论"
+    permission: "ideology.nwid"
+  union_solidarityism:
+    display_name: "工会团结主义"
+    permission: "ideology.usolid"
+  worker_republicanism:
+    display_name: "工人共和主义"
+    permission: "ideology.wrepublic"
+  radicalism:
+    display_name: "激进主义"
+    permission: "ideology.radicalism"
+  popular_republican_order:
+    display_name: "民众共和制"
+    permission: "ideology.poprepublic"    
+  worker_anarchism:
+    display_name: "工人无治主义"
+    permission: "ideology.wanarch"
+  enlightened_clerical_order:
+    display_name: "开明教团"
+    permission: "ideology.eco"
+  order_based_labor_system:
+    display_name: "秩序劳动制"
+    permission: "ideology.ebls"
+  labor_liberalism:
+    display_name: "劳动自由主义"
+    permission: "ideology.lliberal"
+  progressive_independent_order:
+    display_name: "进步独立制"
+    permission: "ideology.pio"
+  equal_coexistence_doctrine:
+    display_name: "平等共处论"
+    permission: "ideology.ecoexist"
+  public_consultative_ideology:
+    display_name: "公共协商主义"
+    permission: "ideology.pci"
+  centrism:
+    display_name: "中间主义"
+    permission: "ideology.centrism"
+  honorable_peace_thought:
+    display_name: "光荣和平思潮"
+    permission: "ideology.hpt"
+  quadripartite_separation_doctrine:
+    display_name: "四权分立学说"
+    permission: "ideology.qsd"
+  conservative_republican_order:
+    display_name: "保守共和制"
+    permission: "ideology.crepublic"
+  independent_liberalism:
+    display_name: "独立自由主义"
+    permission: "ideology.indlib"
+  labor_cooperativism:
+    display_name: "劳动合作主义"
+    permission: "ideology.lcoop"
+  theocracy:
+    display_name: "神权制"
+    permission: "ideology.theocracy"
+  psychocracy:
+    display_name: "精神病统治"
+    permission: "ideology.psychocracy"
+  colonial_regime:
+    display_name: "殖民地政权"
+    permission: "ideology.colregime"
+  conservative_liberalism:
+    display_name: "保守自由主义"
+    permission: "ideology.conlib"
+  oligarchic_republican_order:
+    display_name: "寡头共和制"
+    permission: "ideology.orepublic"
+  communal_revolution_theory:
+    display_name: "社群革命论"
+    permission: "ideology.crtheory"
+  prominent_military_doctrine:
+    display_name: "突出军事学说"
+    permission: "ideology.pmd"
+  singular_autocracy_doctrine:
+    display_name: "一人专权思想"
+    permission: "ideology.sad"

@@ -1,0 +1,270 @@
+# ===============================
+# CampSystem 4.3 - Config
+# ===============================
+
+camp:
+  max-hp: 100
+  heal-rate: 0.5        # 每周期自动恢复
+  heal-interval: 600    # tick (600=30s)
+  radius: 16            # 领地半径（以方块为单位）
+  fuel:
+    max: 25
+    interval-seconds: 1200
+    drain-amount: 1
+    check-interval-ticks: 600
+    zero-damage: 5    # 当燃料耗尽时每次检测损失的生命值
+  upgrades:
+    hp:
+      enabled: true
+      display: "血量上限"
+      levels:
+        1:
+          cost: 5000
+          cost-display: "5000 ₿"
+          items:
+            IRON_INGOT: 32
+          items-display: "32 铁锭"
+          max-hp: 150
+        2:
+          cost: 10000
+          cost-display: "10000 ₿"
+          items:
+            GOLD_INGOT: 32
+          items-display: "32 金锭"
+          max-hp: 200
+    fuel:
+      enabled: true
+      display: "燃料上限"
+      levels:
+        1:
+          cost: 3000
+          cost-display: "3000 ₿"
+          items:
+            COAL: 32
+          items-display: "32 煤炭"
+          max-fuel: 35
+        2:
+          cost: 7000
+          cost-display: "7000 ₿"
+          items:
+            BLAZE_ROD: 16
+          items-display: "16 烈焰棒"
+          max-fuel: 50
+    heal:
+      enabled: true
+      display: "回血效率"
+      levels:
+        1:
+          cost: 4000
+          cost-display: "4000 ₿"
+          items:
+            GHAST_TEAR: 4
+          items-display: "4 恶魂之泪"
+          heal-rate: 0.8
+        2:
+          cost: 9000
+          cost-display: "9000 ₿"
+          items:
+            GOLDEN_APPLE: 8
+          items-display: "8 金苹果"
+          heal-rate: 1.2
+    fatigue:
+      enabled: true
+      display: "挖掘疲劳"
+      levels:
+        1:
+          cost: 2500
+          cost-display: "2500 ₿"
+          items:
+            SPIDER_EYE: 24
+          items-display: "24 蜘蛛眼"
+          fatigue-amplifier: 1
+        2:
+          cost: 8000
+          cost-display: "8000 ₿"
+          items:
+            FERMENTED_SPIDER_EYE: 16
+          items-display: "16 发酵蜘蛛眼"
+          fatigue-amplifier: 2
+  move:
+    cost: 0.0
+    items: { }           # 支持 ItemsAdder 物品（itemsadder:命名空间:物品）
+    item-material: "WHITE_BANNER"
+    item-name: "&f放置重建"
+
+ideology:
+  cooldown-seconds: 0 #3600   # 意识形态切换冷却时间（秒），0为无冷却
+capital:
+  move:
+    cooldown-seconds: 0 #86400      # 常规换都冷却（秒），设置为0禁用冷却
+    cost: 200.0
+    items: { }                   # 支持 ItemsAdder 物品
+    emergency:
+      cost: 200.0
+      items: { }                 # 战时紧急换都所需物品（为空则沿用常规配置）
+  hologram:
+    enabled: false
+    offset-y: 1.8
+    line-spacing: 0.28
+    refresh-ticks: 20
+
+protection:
+  mining-fatigue:
+    enabled: true
+    amplifier: 0
+    duration-seconds: 10
+  notifications:
+    enabled: true
+    title:
+      fade-in: 10
+      stay: 60
+      fade-out: 10
+  particles:
+    enabled: true
+    steps: 24
+    points-per-step: 6
+    step-delay-ticks: 2
+    height: 0.15
+    size: 1.0
+    own-color: "#3CFF6B"
+    other-color: "#FF3B3B"
+  camp-core-build:
+    enabled: true        # 是否禁止在营地方块核心 3x3（含上方两层）内建造
+    radius: 1            # 核心区域的水平半径（1=3x3）
+    min-y-offset: 1      # 相对营地 y 的最小高度偏移
+    max-y-offset: 2      # 相对营地 y 的最大高度偏移
+  blocked-interactions:
+    - "CHEST"
+    - "*_CHEST"
+    - "*_SHULKER_BOX"
+    - "BARREL"
+    - "*_DOOR"
+    - "*_TRAPDOOR"
+    - "*_FENCE_GATE"
+
+creation:
+  allow-custom-names: true
+  cooldown-seconds: 1
+  restricted-worlds: [resourceworld, world_nether, world_the_end, lobby]
+  required-item: "LODESTONE"
+  state:
+    cost: 0.0
+    cooldown-seconds: 300
+    items: { }
+  sector:
+    cost: 0.0
+    cooldown-seconds: 300
+    items: { }
+
+requests:
+  invite-timeout-seconds: 300   # 入国邀请的有效期（秒）
+  join-timeout-seconds: 300     # 加入申请的有效期（秒）
+  givesector-timeout-seconds: 300  # 赠送领地请求的有效期（秒）
+  surrender-timeout-seconds: 300   # 投降响应的有效期（秒）
+
+defaults:
+  auto-id-length: 3
+  state-name-format: "第%id%号殖民地"
+  sector-name-format: "第%id%区"
+  camp-id-prefix: "COLONY-"
+
+sectors:
+  # 可放置的立场引擎数量 = 当前政权人数 + 1
+  inter-state-gap: 10        # 不同国家的营地之间至少需要的额外间隔（单位：方块）
+
+bank:
+  enabled: false
+  log-size: 30            # 国家银行记录保留条目数量
+  tax:
+    amount: 100.0         # 每个税收周期向在线成员收取的金额
+    interval-minutes: 30  # 玩家在线多久后触发一次税收
+    sample-period-ticks: 1200  # 税收检测周期（默认 60s）
+
+war:
+  cooldown-minutes: 1 #60
+  cooldowns:
+    condemn-seconds: 1 #600
+    declare-seconds: 1 #3600
+    movecapital-seconds: 1 #1800
+  requirements:
+    minimum-members: 1  #3
+    minimum-sectors: 1  #2
+  condemn-delay-seconds: 1 #604800
+  declare-cost: 0.0
+  defeat-delay-seconds: 30
+  camp-damage-per-hit: 10.0
+  capital-hold-seconds: 120
+  rewards:
+    server-money: 0.0          # 服务器给予胜利方的总奖励，会在胜利阵营内部平均分配
+    bank-percent: 0.1          # 失败方国库被扣除的比例，同样平均分给胜利方
+  raiders:
+    enabled: false             # 战争期间定期生成掠夺者
+    interval-seconds: 600      # 刷新间隔（秒）
+    count: 3                   # 每轮刷新的掠夺者数量
+    radius: 6.0                # 相对营地方块的水平偏移半径
+    height-offset: 0.0         # 刷新高度偏移
+
+civilwar:
+  rebel-suffix: "叛军"
+
+sounds:
+  camp-click:
+    enabled: true
+    name: "BLOCK_LEVER_CLICK"
+    volume: 1.0
+    pitch: 1.0
+  gui-click:
+    enabled: true
+    name: "UI_BUTTON_CLICK"
+    volume: 1.0
+    pitch: 1.0
+  state-create:
+    enabled: true
+    name: "UI_TOAST_CHALLENGE_COMPLETE"
+    volume: 1.0
+    pitch: 1.0
+  sector-create:
+    enabled: true
+    name: "BLOCK_BEACON_POWER_SELECT"
+    volume: 1.0
+    pitch: 1.0
+  capital-set:
+    enabled: true
+    name: "ENTITY_PLAYER_LEVELUP"
+    volume: 1.0
+    pitch: 1.0
+  fuel-add:
+    enabled: true
+    name: "BLOCK_BREWING_STAND_BREW"
+    volume: 1.0
+    pitch: 1.0
+  fuel-full:
+    enabled: true
+    name: "BLOCK_NOTE_BLOCK_BASS"
+    volume: 1.0
+    pitch: 1.0
+  camp-damage:
+    enabled: true
+    name: "ENTITY_ZOMBIE_ATTACK_WOODEN_DOOR"
+    volume: 1.0
+    pitch: 1.0
+  upgrade-success:
+    enabled: true
+    name: "BLOCK_ENCHANTMENT_TABLE_USE"
+    volume: 1.0
+    pitch: 1.0
+  protected-block:
+    enabled: true
+    name: "BLOCK_NOTE_BLOCK_BASS"
+    volume: 1.0
+    pitch: 1.0
+  war-start:
+    enabled: true
+    name: "EVENT_RAID_HORN"
+    volume: 1.0
+    pitch: 1.0
+  war-end:
+    enabled: true
+    name: "UI_TOAST_CHALLENGE_COMPLETE"
+    volume: 1.0
+    pitch: 1.0

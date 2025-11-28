@@ -1,0 +1,392 @@
+# 可自定义的营地方块 GUI 配置
+# 支持 ItemsAdder 物品：使用 itemsadder:命名空间:物品名
+# 每个按钮可使用 slot: 单格 或 slots: [0, 1, 2] 来占据多个格子
+
+gui:
+  main:
+    title: ":offset_-8::campgui2::offset_-166:&8自适应燃料立场引擎操控中心"
+    rows: 6
+    buttons:
+#-----------------------essential-----------------------
+      health_status:
+        slot: 25
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&c❤ &f%hp%/&f%maxhp%"
+        lore:
+          - "&6🔥 &f%fuel%/&f%maxfuel%"
+          - "&9⏳ &f%fuel_time%"
+      citizen: 
+        slot: 34
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&c✘ 敬情期待…"
+      close:
+        slot: 43
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&f关闭"
+        action: "close"
+#-----------------------essential_end-----------------------
+      fuel:
+        slots: [10, 11, 19, 20]
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e打开 &f燃料管理"
+        lore:
+          - "&7自适应燃料立场引擎采用了最先进的设计"
+          - "&7使其可以混合燃烧不同类型的燃料，以此"
+          - "&7大大增加了运行效率。"
+        action: "open:fuel"
+      ideology:
+        slot: 16
+        item: "itemsadder:gocmc:ideology_off"
+        name: "&e切换 &f意识形态管理"
+        lore:
+          - "&7引擎的意识形态立场是控制思想最有效的"
+          - "&7方式，在同一政权下的公民将直接信奉并"
+          - "&7认同该政权的唯一官方意识形态而几乎不"
+          - "&7会动摇。"
+          #- "&7需要: &f首领（首都营地）"
+          #- "&7打开意识形态选择页面"
+        action: "open:ideology"
+      rename-sector:
+        slots: [12, 13, 21]
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e点击 &f重命名地区"
+        lore:
+          - "&7一个城市的名字变更没有什么奇怪的。"
+          #- "&7需要: &f首领或该地区总督"
+          #- "&7点击后在聊天栏输入新名称"
+        action: "rename:sector"
+      move-sector:
+        slots: [30, 31, 39]
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e点击 &f迁移引擎"
+        lore:
+          - "&7使用迁移旗帜进行迁移。"
+          #- "&7需要: &f首领或该地区总督"
+          #- "&7移动前会扣除费用并发放迁移旗帜"
+        action: "move:sector"
+      upgrades:
+        slots: [28, 29, 37, 38]
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e打开 &f引擎升级"
+        lore:
+          - "&7自适应燃料立场引擎采用了模块化的设计"
+          - "&7使其每个部分都可以更换部件或升级，大"
+          - "&7大提高了其扩展性。"
+          #- "&7需要: &f首领或该地区总督"
+          #- "&7打开营地升级菜单"
+        action: "open:upgrades"
+      rename-state:
+        slot: 22
+        item: "NAME_TAG"
+        name: "&e点击 &f重命名政权"
+        lore:
+          - "&7需要慎重考虑。"
+          #- "&7需要: &f首领"
+          #- "&7仅能在首都营地执行"
+        action: "rename:state"
+      set-capital:
+        slot: 40
+        item: "NETHER_STAR"
+        name: "&e点击 &f设为首都"
+        lore:
+          - "&7若处在战争中将触发紧急迁都。"
+          #- "&7需要: &f首领"
+          #- "&7战争中将触发紧急迁都"
+        action: "capital:set"
+        
+  fuel:
+    title: ":offset_-8::campgui_fuel::offset_-166:&8自适应燃料立场引擎操控中心"
+    rows: 6
+    display:
+      slot: 25
+      item: "itemsadder:gocmc:blank_slot"
+      name: "&c❤ &f%hp%/&f%maxhp%"
+      lore:
+        - "&6🔥 &f%fuel%/&f%maxfuel%"
+        - "&9⏳ &f%fuel_time%"
+    back:
+      slot: 43
+      item: "itemsadder:gocmc:blank_slot"
+      name: "&f返回"
+      action: "open:main"
+#-----------------------essential_end-----------------------
+    options:
+      citizen:
+        slot: 34
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&c✘ 敬情期待…"
+      lignite:
+        slot: 12
+        item: "itemsadder:gocmc:lignite"
+        name: "&e添加 &f褐煤"
+        lore:
+          - "&7燃料: +0.5"
+        amount: 1
+        fuel: 0.5
+        action: "fuel:lignite"
+      coal:
+        slot: 13
+        item: "COAL"
+        name: "&e添加 &f煤炭"
+        lore:
+          - "&7燃料: +1"
+        amount: 1
+        fuel: 1
+        action: "fuel:coal"
+      lignite_black:
+        slot: 21
+        item: "itemsadder:gocmc:lignite_black"
+        name: "&e添加 &f黑褐煤"
+        lore:
+          - "&7燃料: +1"
+        amount: 1
+        fuel: 1
+        action: "fuel:lignite_black"
+      charcoal:
+        slot: 22
+        item: "CHARCOAL"
+        name: "&e添加 &f木炭"
+        lore:
+          - "&7燃料: +1.5"
+        amount: 1
+        fuel: 1.5
+        action: "fuel:charcoal"
+      coal_dust:
+        slot: 28
+        item: "itemsadder:gocmc:coal_dust"
+        name: "&e添加 &f炭粉"
+        lore:
+          - "&7燃料: +1.5"
+        amount: 1
+        fuel: 1.5
+        action: "fuel:coal_dust"
+      charcoal_dust:
+        slot: 29
+        item: "itemsadder:gocmc:charcoal_dust"
+        name: "&e添加 &f木炭粉"
+        lore:
+          - "&7燃料: +2"
+        amount: 1
+        fuel: 2
+        action: "fuel:charcoal_dust"
+      anthracite:
+        slot: 30
+        item: "itemsadder:gocmc:anthracite"
+        name: "&e添加 &f无烟煤"
+        lore:
+          - "&7燃料: +3"
+        amount: 1
+        fuel: 3
+        action: "fuel:anthracite"
+        
+  ideology:
+    title: ":offset_-8::ideology::offset_-166:&8自适应燃料立场引擎操控中心"
+    rows: 6
+    buttons:
+      back:
+        slot: 16
+        item: "itemsadder:gocmc:ideology_on"
+        name: "&e切换 &f意识形态管理"
+        lore:
+          - "&7引擎的意识形态立场是控制思想最有效的"
+          - "&7方式，在同一政权下的公民将直接信奉并"
+          - "&7认同该政权的唯一官方意识形态而几乎不"
+          - "&7会动摇。"
+        action: "open:main"
+#----------------------------------farleft----------------------------------
+      revolutionary_contract_theory:
+        slot: 10
+        item: "RED_BANNER"
+        name: "&e信奉 &f%ideology_display%"
+        lore:
+          #- "&7ID: &f%ideology_id%"
+          - "&7还有什么比为劳动者服务更光荣的呢？"
+          - ""
+          - "&7革命契约论是&4激进主义左翼&7意识形态中的"
+          - "&7一种。劳动者被视为是政权的合法性来源"
+          - "&7是政权真正的主人，一切政治团体或制度"
+          - "&7的最终服务对象都是劳动者。"
+          - ""
+          - "&7状态: %ideology_status%"
+        action: "ideology:set:revolutionary_contract_theory"
+      new_world_identity_doctrine:
+        slot: 11
+        item: "RED_BANNER"
+        name: "&e信奉 &f%ideology_display%"
+        lore:
+          #- "&7ID: &f%ideology_id%"
+          - "&7与过去的旧世界一刀两断！"
+          - ""
+          - "&7新世界认同论是&4激进主义左翼&7意识形态的"
+          - "&7一种。其表现为反对拘泥于旧世界的枷锁"
+          - "&7应建立起对大裂变后新世界的阶级或群体"
+          - "&7认同，以此建立起新世界的革命政权。"
+          - ""
+          - "&7状态: %ideology_status%"
+        action: "ideology:set:new_world_identity_doctrine"  
+      union_solidarityism:
+        slot: 12
+        item: "RED_BANNER"
+        name: "&e信奉 &f%ideology_display%"
+        lore:
+          #- "&7ID: &f%ideology_id%"
+          - "&7团结即是钢铁般的力量。"
+          - ""
+          - "&7工会团结主义是&4激进主义左翼&7意识形态中"
+          - "&7的一种。其主要观点认为工会是政权组织"
+          - "&7的最佳形式，并号召工人为此进行革命。"
+          - ""
+          - "&7状态: %ideology_status%"
+        action: "ideology:set:union_solidarityism"   
+#----------------------------------left----------------------------------
+      worker_republicanism:
+        slot: 13
+        item: "MAGENTA_BANNER"
+        name: "&e信奉 &f%ideology_display%"
+        lore:
+          #- "&7ID: &f%ideology_id%"
+          - "&7为了工人的福祉与权益。"
+          - ""
+          - "&7工人共和主义是&c主流左翼&7意识形态的一种"
+          - "&7这种观点主张建立工人的独立政权，并采"
+          - "&7取了具有共和主义色彩的组织形式。"
+          - ""
+          - "&7状态: %ideology_status%"
+        action: "ideology:set:worker_republicanism"
+#----------------------------------mid-left----------------------------------        
+      labor_liberalism:
+        slot: 19
+        item: "PINK_BANNER"
+        name: "&e信奉 &f%ideology_display%"
+        lore:
+          #- "&7ID: &f%ideology_id%"
+          - "&7玫瑰和面包：这就是进步！"
+          - ""
+          - "&7劳动自由主义是&d温和左翼&7意识形态的一种"
+          - "&7其主要特点在于强调工人个体权利与市场"
+          - "&7活力的并存，试图以制度改革推动自由、"
+          - "&7公平与社会流动性的平衡。"
+          - ""
+          - "&7状态: %ideology_status%"
+        action: "ideology:set:labor_liberalism"
+#----------------------------------centre----------------------------------
+      centrism:
+        slot: 20
+        item: "WHITE_BANNER"
+        name: "&e信奉 &f%ideology_display%"
+        lore:
+          #- "&7ID: &f%ideology_id%"
+          - "&7不偏不倚，平稳航行。"
+          - ""
+          - "&7中间主义是一种位于&f政治光谱中央&7的意识"
+          - "&7形态。其主要特点在于强调折中、共识与"
+          - "&7稳健的政策路线，通过持续协调社会诸派"
+          - "&7矛盾以维持整体的平衡与秩序。"
+          - ""
+          - "&7状态: %ideology_status%"
+        action: "ideology:set:centrism"
+#----------------------------------right----------------------------------
+      colonial_regime:
+        slot: 21
+        item: "BLUE_BANNER"
+        name: "&e信奉 &f%ideology_display%"
+        lore:
+          #- "&7ID: &f%ideology_id%"
+          - "&7李登布洛克董事会来电…"
+          - ""
+          - "&7殖民地政权是&9保守右翼&7谱系中的一种意识"
+          - "&7形态。其特征在于强调中央对边疆的垂直"
+          - "&7管理与资源支配，并倾向以秩序、治安与"
+          - "&7生产效率为核心来正当化统治。"
+          - ""
+          - "&7状态: %ideology_status%"
+        action: "ideology:set:colonial_regime"
+#----------------------------------farleft----------------------------------
+      prominent_military_doctrine:
+        slot: 22
+        item: "BLACK_BANNER"
+        name: "&e信奉 &f%ideology_display%"
+        lore:
+          #- "&7ID: &f%ideology_id%"
+          - "&7一切融于铁，最后付诸于血。"
+          - ""
+          - "&7突出军事学说属于&8极端右翼&7意识形态。其"
+          - "&7核心在于赋予军队至上地位，视军事力量"
+          - "&7为国家根本，并主张通过武力、纪律与压"
+          - "&7制性手段来塑造社会结构。"
+          - ""
+          - "&7状态: %ideology_status%"
+        action: "ideology:set:prominent_military_doctrine"
+        
+  upgrades:
+    title: ":offset_-8::campgui_upgrade::offset_-166:&8自适应燃料立场引擎操控中心"
+    rows: 6
+    buttons:
+      health_status:
+        slot: 25
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&c❤ &f%hp%/&f%maxhp%"
+        lore:
+          - "&6🔥 &f%fuel%/&f%maxfuel%"
+          - "&9⏳ &f%fuel_time%"
+      citizen: 
+        slot: 34
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&c✘ 敬情期待…"
+      back:
+        slot: 43
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&f返回"
+        action: "open:main"
+      hp:
+        slot: 10
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e升级 &f血量上限"
+        lore:
+          - "&7lv.%upgrade_hp_level% → lv.%upgrade_hp_next_level%"
+          - "&7下一级血量: &f%upgrade_hp_next_maxhp%"
+          - ""
+          - "&7所需材料: "
+          - " &9%upgrade_hp_cost%"
+          - " &9%upgrade_hp_items%"
+          #- "&7状态: &f%upgrade_hp_status%"
+        action: "upgrade:hp"
+      fuel:
+        slot: 11
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e升级 &f燃料上限"
+        lore:
+          - "&7lv.%upgrade_fuel_level% → lv.%upgrade_fuel_next_level%"
+          - "&7下一级燃料: &f%upgrade_fuel_next_maxfuel%"
+          - ""
+          - "&7所需材料: "
+          - " &9%upgrade_fuel_cost%"
+          - " &9%upgrade_fuel_items%"
+          #- "&7状态: &f%upgrade_fuel_status%"
+        action: "upgrade:fuel"
+      heal:
+        slot: 12
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e升级 &f恢复效率"
+        lore:
+          - "&7lv.%upgrade_heal_level% → lv.%upgrade_heal_next_level%"
+          - "&7下一级恢复: &f%upgrade_heal_next_healrate%/30s"
+          - ""
+          - "&7所需材料: "
+          - " &9%upgrade_heal_cost%"
+          - " &9%upgrade_heal_items%"
+          #- "&7状态: &f%upgrade_heal_status%"
+        action: "upgrade:heal"
+      fatigue:
+        slot: 13
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e升级 &f挖掘疲劳"
+        lore:
+          - "&7lv.%upgrade_fatigue_level% → lv.%upgrade_fatigue_next_level%"
+          - "&7下一级等级: &f%upgrade_fatigue_next_fatigue%"
+          - ""
+          - "&7所需材料: "
+          - " &9%upgrade_fatigue_cost%"
+          - " &9%upgrade_fatigue_items%"
+          #- "&7状态: &f%upgrade_fatigue_status%"
+        action: "upgrade:fatigue"
