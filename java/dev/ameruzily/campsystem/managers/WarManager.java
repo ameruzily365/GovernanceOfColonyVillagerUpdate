@@ -7,12 +7,14 @@ import dev.ameruzily.campsystem.models.WarData;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.Material;
 import org.bukkit.entity.Pillager;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.*;
 
@@ -45,15 +47,24 @@ public class WarManager {
     private double baseHealRate;
     private int baseFatigueAmplifier;
 
+    private boolean productionEnabled;
+    private long baseProductionIntervalMs;
+    private double productionMoney;
+    private Map<StateManager.ItemDescriptor, Integer> productionItems = new HashMap<>();
+    private double baseStoredMoneyCap;
+    private int baseStoredItemCap;
+
     public WarManager(CampSystem plugin) {
         this.plugin = plugin;
         reloadUpgradeSettings();
+        loadProductionSettings();
         startAutoHealTask();
         startMaintenanceTask();
     }
 
     public void reloadSettings() {
         reloadUpgradeSettings();
+        loadProductionSettings();
         reapplyUpgrades();
         startAutoHealTask();
         startMaintenanceTask();
@@ -206,6 +217,16 @@ public class WarManager {
         }
     }
 
+    private void loadProductionSettings() {
+        this.productionEnabled = plugin.getConfig().getBoolean("camp.production.enabled", false);
+        long seconds = Math.max(0L, plugin.getConfig().getLong("camp.production.interval-seconds", 300L));
+        this.baseProductionIntervalMs = seconds * 1000L;
+        this.productionMoney = Math.max(0.0, plugin.getConfig().getDouble("camp.production.money", 0.0));
+        this.baseStoredMoneyCap = Math.max(0.0, plugin.getConfig().getDouble("camp.production.storage.money", 0.0));
+        this.baseStoredItemCap = Math.max(0, plugin.getConfig().getInt("camp.production.storage.items", 0));
+        this.productionItems = plugin.state().loadItemRequirements("camp.production.items");
+    }
+
     private UpgradeTree loadUpgradeTree(CampUpgradeType type) {
         String basePath = "camp.upgrades." + type.configKey();
         ConfigurationSection section = plugin.getConfig().getConfigurationSection(basePath);
@@ -236,7 +257,12 @@ public class WarManager {
                 Integer maxFuel = entry.isInt("max-fuel") ? entry.getInt("max-fuel") : null;
                 Double healRate = (entry.isDouble("heal-rate") || entry.isInt("heal-rate")) ? entry.getDouble("heal-rate") : null;
                 Integer fatigue = entry.isInt("fatigue-amplifier") ? entry.getInt("fatigue-amplifier") : null;
-                tiers.put(level, new UpgradeTier(level, cost, costDisplay, itemsDisplay, materials, maxHp, maxFuel, healRate, fatigue));
+                Double storageMoney = (entry.isDouble("storage-money") || entry.isInt("storage-money")) ? entry.getDouble("storage-money") : null;
+                Integer storageItems = entry.isInt("storage-items") ? entry.getInt("storage-items") : null;
+                Long productionInterval = entry.isLong("production-interval-seconds") || entry.isInt("production-interval-seconds")
+                        ? entry.getLong("production-interval-seconds") : null;
+                tiers.put(level, new UpgradeTier(level, cost, costDisplay, itemsDisplay, materials, maxHp, maxFuel, healRate, fatigue,
+                        storageMoney, storageItems, productionInterval));
             }
         }
         return new UpgradeTree(type, enabled, tiers, display);
@@ -1092,6 +1118,9 @@ public class WarManager {
         int maxFuel = baseMaxFuel;
         double healRate = baseHealRate;
         int fatigue = baseFatigueAmplifier;
+        double storageMoney = baseStoredMoneyCap;
+        int storageItems = baseStoredItemCap;
+        long productionInterval = productionEnabled ? baseProductionIntervalMs : 0L;
 
         UpgradeTier hpTier = getTier(CampUpgradeType.HP, camp.getHpLevel());
         if (hpTier != null && hpTier.maxHp() != null) {
@@ -1109,11 +1138,27 @@ public class WarManager {
         if (fatigueTier != null && fatigueTier.fatigueAmplifier() != null) {
             fatigue = fatigueTier.fatigueAmplifier();
         }
+        UpgradeTier storageTier = getTier(CampUpgradeType.STORAGE, camp.getStorageLevel());
+        if (storageTier != null) {
+            if (storageTier.storedMoneyCap() != null) {
+                storageMoney = storageTier.storedMoneyCap();
+            }
+            if (storageTier.storedItemCap() != null) {
+                storageItems = storageTier.storedItemCap();
+            }
+        }
+        UpgradeTier efficiencyTier = getTier(CampUpgradeType.EFFICIENCY, camp.getEfficiencyLevel());
+        if (efficiencyTier != null && efficiencyTier.productionIntervalSeconds() != null) {
+            productionInterval = efficiencyTier.productionIntervalSeconds() * 1000L;
+        }
 
         camp.setMaxHp(maxHp);
         camp.setMaxFuel(maxFuel);
         camp.setHealRate(healRate);
         camp.setFatigueAmplifier(fatigue);
+        camp.setMaxStoredMoney(storageMoney);
+        camp.setMaxStoredItems(storageItems);
+        camp.setProductionIntervalMs(productionInterval);
     }
 
     public void applySectorTransfer(String fromState, String fromSector, String toState, String toSector) {
@@ -1263,7 +1308,21 @@ public class WarManager {
                 camp.setFuelLevel(campSection.getInt("fuel-level", 0));
                 camp.setHealLevel(campSection.getInt("heal-level", 0));
                 camp.setFatigueLevel(campSection.getInt("fatigue-level", 0));
+                camp.setStorageLevel(campSection.getInt("storage-level", 0));
+                camp.setEfficiencyLevel(campSection.getInt("efficiency-level", 0));
                 applyCampUpgrades(camp);
+
+                camp.setStoredMoney(campSection.getDouble("stored-money", 0.0));
+                ConfigurationSection stored = campSection.getConfigurationSection("stored-items");
+                if (stored != null) {
+                    for (String itemKey : stored.getKeys(false)) {
+                        int amount = stored.getInt(itemKey, 0);
+                        if (amount > 0) {
+                            camp.addStoredItem(itemKey, amount);
+                        }
+                    }
+                }
+                camp.setLastProductionAt(campSection.getLong("last-production", System.currentTimeMillis()));
 
                 camps.put(campKey(stateName, sectorName), camp);
                 if (plugin.holograms() != null) {
@@ -1747,6 +1806,10 @@ public class WarManager {
                 }
             }
 
+            if (handleProduction(camp, now)) {
+                changed = true;
+            }
+
             if (zeroFuelDamage > 0 && camp.getFuel() <= 0) {
                 double beforeHp = camp.getHp();
                 double maxDamage = Math.max(0.0, beforeHp - 1.0);
@@ -1778,6 +1841,69 @@ public class WarManager {
         long elapsed = Math.max(0L, now - camp.getLastFuelCheckAt());
         long total = interval * Math.max(0L, (long) camp.getFuel());
         return Math.max(0L, total - elapsed);
+    }
+
+    private boolean handleProduction(Camp camp, long now) {
+        if (!productionEnabled || camp == null) {
+            return false;
+        }
+        if (camp.getFuel() <= 0 || camp.getProductionIntervalMs() <= 0L) {
+            camp.setLastProductionAt(now);
+            return false;
+        }
+        long last = camp.getLastProductionAt();
+        if (last <= 0L) {
+            camp.setLastProductionAt(now);
+            return false;
+        }
+        long elapsed = now - last;
+        long interval = camp.getProductionIntervalMs();
+        if (elapsed < interval) {
+            return false;
+        }
+        long steps = Math.max(1L, elapsed / interval);
+        camp.setLastProductionAt(last + steps * interval);
+
+        boolean changed = false;
+        double moneyToAdd = productionMoney * steps;
+        if (moneyToAdd > 0.0 && camp.getMaxStoredMoney() > 0.0 && camp.getStoredMoney() < camp.getMaxStoredMoney()) {
+            double before = camp.getStoredMoney();
+            camp.addStoredMoney(moneyToAdd);
+            changed |= Math.abs(before - camp.getStoredMoney()) > 1e-6;
+        }
+
+        if (!productionItems.isEmpty() && camp.getMaxStoredItems() > 0) {
+            int totalAvailable = Math.max(0, camp.getMaxStoredItems() - camp.getStoredItemTotal());
+            if (totalAvailable > 0) {
+                for (Map.Entry<StateManager.ItemDescriptor, Integer> entry : productionItems.entrySet()) {
+                    int amount = (int) Math.min(Integer.MAX_VALUE, entry.getValue() * steps);
+                    if (amount <= 0) {
+                        continue;
+                    }
+                    int allowed = Math.max(0, camp.getMaxStoredItems() - camp.getStoredItemTotal());
+                    if (allowed <= 0) {
+                        break;
+                    }
+                    int toStore = Math.min(allowed, amount);
+                    int before = camp.getStoredItemTotal();
+                    camp.addStoredItem(entry.getKey().getIdentity(), toStore);
+                    changed |= camp.getStoredItemTotal() != before;
+                }
+            }
+        }
+        return changed;
+    }
+
+    private StateManager.ItemDescriptor findProductionDescriptor(String identity) {
+        if (identity == null) {
+            return null;
+        }
+        for (StateManager.ItemDescriptor descriptor : productionItems.keySet()) {
+            if (descriptor.getIdentity().equalsIgnoreCase(identity)) {
+                return descriptor;
+            }
+        }
+        return null;
     }
 
     private void handleMaintenanceWarning(Camp camp, long remaining) {
@@ -1858,6 +1984,66 @@ public class WarManager {
                 }
             }
         }
+    }
+
+    public ProductionClaimResult claimProduction(Player player, Camp camp) {
+        if (player == null || camp == null) {
+            return ProductionClaimResult.empty();
+        }
+        if (!plugin.state().canManageCamp(player, camp)) {
+            return ProductionClaimResult.noPermission();
+        }
+        double storedMoney = camp.getStoredMoney();
+        int storedItems = camp.getStoredItemTotal();
+        if (storedItems <= 0 && storedMoney <= 1e-6) {
+            return ProductionClaimResult.empty();
+        }
+
+        Map<String, Integer> deliveredItems = new LinkedHashMap<>();
+        boolean itemsDelivered = false;
+        for (Map.Entry<String, Integer> entry : new HashMap<>(camp.getStoredItems()).entrySet()) {
+            String key = entry.getKey();
+            int amount = entry.getValue();
+            if (amount <= 0) {
+                continue;
+            }
+            StateManager.ItemDescriptor descriptor = findProductionDescriptor(key);
+            ItemStack baseItem = descriptor != null ? descriptor.createItem(plugin, 1) : null;
+            Material material = baseItem != null ? baseItem.getType() : Material.matchMaterial(key);
+            while (amount > 0 && material != null) {
+                int batch = Math.min(amount, baseItem != null ? baseItem.getMaxStackSize() : material.getMaxStackSize());
+                ItemStack stack = descriptor != null ? descriptor.createItem(plugin, batch) : new ItemStack(material, batch);
+                if (stack == null) {
+                    break;
+                }
+                Map<Integer, ItemStack> leftovers = player.getInventory().addItem(stack);
+                if (!leftovers.isEmpty()) {
+                    leftovers.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+                }
+                amount -= batch;
+                itemsDelivered = true;
+                String display = descriptor != null ? descriptor.getDisplay() : material.name();
+                deliveredItems.merge(display, batch, Integer::sum);
+            }
+        }
+        camp.clearStoredItems();
+
+        double moneyClaimed = 0.0;
+        Economy economy = plugin.economy();
+        if (storedMoney > 0.0) {
+            if (economy == null) {
+                if (itemsDelivered) {
+                    markDirty();
+                }
+                return ProductionClaimResult.noEconomy(deliveredItems, itemsDelivered);
+            }
+            economy.depositPlayer(player, storedMoney);
+            moneyClaimed = storedMoney;
+            camp.setStoredMoney(0.0);
+        }
+
+        markDirty();
+        return ProductionClaimResult.success(moneyClaimed, deliveredItems, itemsDelivered);
     }
 
     public boolean isInWar(Player p) {
@@ -2537,6 +2723,48 @@ public class WarManager {
         }
     }
 
+    public enum ProductionClaimStatus {
+        SUCCESS,
+        NO_PERMISSION,
+        EMPTY,
+        NO_ECONOMY
+    }
+
+    public static class ProductionClaimResult {
+        private final ProductionClaimStatus status;
+        private final double money;
+        private final Map<String, Integer> items;
+        private final boolean itemsDelivered;
+
+        private ProductionClaimResult(ProductionClaimStatus status, double money, Map<String, Integer> items, boolean itemsDelivered) {
+            this.status = status;
+            this.money = money;
+            this.items = items;
+            this.itemsDelivered = itemsDelivered;
+        }
+
+        public static ProductionClaimResult success(double money, Map<String, Integer> items, boolean itemsDelivered) {
+            return new ProductionClaimResult(ProductionClaimStatus.SUCCESS, money, items, itemsDelivered);
+        }
+
+        public static ProductionClaimResult empty() {
+            return new ProductionClaimResult(ProductionClaimStatus.EMPTY, 0.0, Map.of(), false);
+        }
+
+        public static ProductionClaimResult noPermission() {
+            return new ProductionClaimResult(ProductionClaimStatus.NO_PERMISSION, 0.0, Map.of(), false);
+        }
+
+        public static ProductionClaimResult noEconomy(Map<String, Integer> delivered, boolean itemsDelivered) {
+            return new ProductionClaimResult(ProductionClaimStatus.NO_ECONOMY, 0.0, delivered, itemsDelivered);
+        }
+
+        public ProductionClaimStatus getStatus() { return status; }
+        public double getMoney() { return money; }
+        public Map<String, Integer> getItems() { return items; }
+        public boolean isItemsDelivered() { return itemsDelivered; }
+    }
+
     public enum CampDamageStatus {
         SUCCESS,
         BROKEN,
@@ -2571,6 +2799,8 @@ public class WarManager {
             case FUEL -> camp.getFuelLevel();
             case HEAL -> camp.getHealLevel();
             case FATIGUE -> camp.getFatigueLevel();
+            case STORAGE -> camp.getStorageLevel();
+            case EFFICIENCY -> camp.getEfficiencyLevel();
         };
     }
 
@@ -2578,7 +2808,9 @@ public class WarManager {
         HP("hp"),
         FUEL("fuel"),
         HEAL("heal"),
-        FATIGUE("fatigue");
+        FATIGUE("fatigue"),
+        STORAGE("storage"),
+        EFFICIENCY("efficiency");
 
         private final String key;
 
@@ -2593,7 +2825,8 @@ public class WarManager {
 
     public record UpgradeTier(int level, double cost, String costDisplay, String itemsDisplay,
                               Map<StateManager.ItemDescriptor, Integer> items,
-                              Double maxHp, Integer maxFuel, Double healRate, Integer fatigueAmplifier) { }
+                              Double maxHp, Integer maxFuel, Double healRate, Integer fatigueAmplifier,
+                              Double storedMoneyCap, Integer storedItemCap, Long productionIntervalSeconds) { }
 
     public record UpgradeTree(CampUpgradeType type, boolean enabled, Map<Integer, UpgradeTier> tiers, String display) { }
 
