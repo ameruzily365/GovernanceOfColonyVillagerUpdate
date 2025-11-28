@@ -1863,6 +1863,8 @@ public class StateManager {
             case FUEL -> camp.setFuelLevel(next.level());
             case HEAL -> camp.setHealLevel(next.level());
             case FATIGUE -> camp.setFatigueLevel(next.level());
+            case STORAGE -> camp.setStorageLevel(next.level());
+            case EFFICIENCY -> camp.setEfficiencyLevel(next.level());
         }
         plugin.war().applyCampUpgrades(camp);
         plugin.war().markDirty();
@@ -4373,6 +4375,10 @@ public class StateManager {
 
         public String getDisplay() {
             return display;
+        }
+
+        public String getIdentity() {
+            return identity;
         }
 
         public boolean matches(CampSystem plugin, ItemStack stack, String namespacedId) {

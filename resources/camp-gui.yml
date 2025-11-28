@@ -34,6 +34,15 @@ gui:
           - "&7使其可以混合燃烧不同类型的燃料，以此"
           - "&7大大增加了运行效率。"
         action: "open:fuel"
+      production:
+        slots: [14, 23]
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e领取 &f产出"
+        lore:
+          - "&7已累积金钱: &f%production_money%/&f%production_money_max%"
+          - "&7已累积物资: &f%production_items%/&f%production_items_max%"
+          - "&7产出间隔: &f%production_interval%"
+        action: "collect:production"
       ideology:
         slot: 16
         item: "itemsadder:gocmc:ideology_off"
@@ -390,3 +399,28 @@ gui:
           - " &9%upgrade_fatigue_items%"
           #- "&7状态: &f%upgrade_fatigue_status%"
         action: "upgrade:fatigue"
+      storage:
+        slot: 14
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e升级 &f存储上限"
+        lore:
+          - "&7lv.%upgrade_storage_level% → lv.%upgrade_storage_next_level%"
+          - "&7下一级金钱储量: &f%upgrade_storage_next_storage_money%"
+          - "&7下一级物资储量: &f%upgrade_storage_next_storage_items%"
+          - ""
+          - "&7所需材料: "
+          - " &9%upgrade_storage_cost%"
+          - " &9%upgrade_storage_items%"
+        action: "upgrade:storage"
+      efficiency:
+        slot: 15
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e升级 &f产出效率"
+        lore:
+          - "&7lv.%upgrade_efficiency_level% → lv.%upgrade_efficiency_next_level%"
+          - "&7下一级产出间隔: &f%upgrade_efficiency_next_interval%"
+          - ""
+          - "&7所需材料: "
+          - " &9%upgrade_efficiency_cost%"
+          - " &9%upgrade_efficiency_items%"
+        action: "upgrade:efficiency"

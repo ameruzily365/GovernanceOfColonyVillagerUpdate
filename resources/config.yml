@@ -13,6 +13,15 @@ camp:
     drain-amount: 1
     check-interval-ticks: 600
     zero-damage: 5    # 当燃料耗尽时每次检测损失的生命值
+  production:
+    enabled: true
+    interval-seconds: 300
+    money: 10.0
+    items:
+      IRON_INGOT: 1
+    storage:
+      money: 1000.0
+      items: 128
   upgrades:
     hp:
       enabled: true
@@ -86,6 +95,44 @@ camp:
             FERMENTED_SPIDER_EYE: 16
           items-display: "16 发酵蜘蛛眼"
           fatigue-amplifier: 2
+    storage:
+      enabled: true
+      display: "产出存储"
+      levels:
+        1:
+          cost: 3500
+          cost-display: "3500 ₿"
+          items:
+            CHEST: 8
+          items-display: "8 箱子"
+          storage-money: 2000
+          storage-items: 256
+        2:
+          cost: 8000
+          cost-display: "8000 ₿"
+          items:
+            ENDER_CHEST: 2
+          items-display: "2 末影箱"
+          storage-money: 5000
+          storage-items: 512
+    efficiency:
+      enabled: true
+      display: "产出效率"
+      levels:
+        1:
+          cost: 4000
+          cost-display: "4000 ₿"
+          items:
+            CLOCK: 4
+          items-display: "4 时钟"
+          production-interval-seconds: 240
+        2:
+          cost: 9000
+          cost-display: "9000 ₿"
+          items:
+            REDSTONE_BLOCK: 32
+          items-display: "32 红石块"
+          production-interval-seconds: 180
   move:
     cost: 0.0
     items: { }           # 支持 ItemsAdder 物品（itemsadder:命名空间:物品）

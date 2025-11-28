@@ -1,5 +1,5 @@
 # ===============================
-# GovernanceOfColony 0.9.16 - Lang
+# GovernanceOfColony 1.0.1 - Lang
 # ===============================
 
 general:
@@ -217,7 +217,12 @@ state:
   fuel-added: "&a已为%sector%补充 %amount% 燃料: %new%" # actionbar
   fuel-full: "&c%sector%的燃料已满" # actionbar
   fuel-missing-items: "ㅅ &c缺少燃料补给所需物品"
-  maintenance-warning: "&c%sector%的燃料不足, 约 %time% 后耗尽" #[燃料] 
+  maintenance-warning: "&c%sector%的燃料不足, 约 %time% 后耗尽" #[燃料]
+  production-empty: "ㅅ &c当前没有可领取的产出"
+  production-no-economy: "ㅅ &c未检测到 Vault 经济系统, 无法领取金钱产出"
+  production-claimed: "ㅊ &a已领取产出 &f%money% &7| &f%items%"
+  upgrade-name-storage: "产出存储"
+  upgrade-name-efficiency: "产出效率"
   maintenance-overdue: "&7%sector%的燃料已过期, 已等待 %time%"
   maintenance-damage: "&c%sector%因耗尽燃料受到 %damage% 点伤害: ❤ %hp%/%max%"
   maintenance-broken: "&c%sector%因燃料耗尽已停止运作"

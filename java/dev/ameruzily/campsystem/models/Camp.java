@@ -20,12 +20,21 @@ public class Camp {
     private int maxFuel;
     private long lastFuelCheckAt = 0L;
 
+    private double storedMoney;
+    private double maxStoredMoney;
+    private int maxStoredItems;
+    private long lastProductionAt = 0L;
+    private final java.util.Map<String, Integer> storedItems = new java.util.HashMap<>();
+    private long productionIntervalMs;
+
     private double healRate;
     private int fatigueAmplifier;
     private int hpLevel;
     private int fuelLevel;
     private int healLevel;
     private int fatigueLevel;
+    private int storageLevel;
+    private int efficiencyLevel;
 
     public Camp(String id, String stateName, String sectorName, double maxHp) {
         this.id = id;
@@ -41,6 +50,11 @@ public class Camp {
         this.lastFuelCheckAt = now;
         this.healRate = 0.0;
         this.fatigueAmplifier = 0;
+        this.maxStoredMoney = 0.0;
+        this.storedMoney = 0.0;
+        this.maxStoredItems = 0;
+        this.productionIntervalMs = 0L;
+        this.lastProductionAt = now;
     }
 
     public String getId() { return id; }
@@ -59,6 +73,12 @@ public class Camp {
     public int getFuel() { return fuel; }
     public int getMaxFuel() { return maxFuel; }
     public long getLastFuelCheckAt() { return lastFuelCheckAt; }
+    public double getStoredMoney() { return storedMoney; }
+    public double getMaxStoredMoney() { return maxStoredMoney; }
+    public int getMaxStoredItems() { return maxStoredItems; }
+    public long getLastProductionAt() { return lastProductionAt; }
+    public long getProductionIntervalMs() { return productionIntervalMs; }
+    public java.util.Map<String, Integer> getStoredItems() { return storedItems; }
 
     /**
      * 造成伤害，并在血量降至 0 时返回 true。
@@ -144,6 +164,30 @@ public class Camp {
         }
     }
 
+    public void setStoredMoney(double storedMoney) {
+        this.storedMoney = Math.max(0.0, Math.min(maxStoredMoney, storedMoney));
+    }
+
+    public void setMaxStoredMoney(double maxStoredMoney) {
+        this.maxStoredMoney = Math.max(0.0, maxStoredMoney);
+        if (storedMoney > this.maxStoredMoney) {
+            storedMoney = this.maxStoredMoney;
+        }
+    }
+
+    public void setMaxStoredItems(int maxStoredItems) {
+        this.maxStoredItems = Math.max(0, maxStoredItems);
+        clampStoredItems();
+    }
+
+    public void setLastProductionAt(long lastProductionAt) {
+        this.lastProductionAt = Math.max(0L, lastProductionAt);
+    }
+
+    public void setProductionIntervalMs(long productionIntervalMs) {
+        this.productionIntervalMs = Math.max(0L, productionIntervalMs);
+    }
+
     public void setLastFuelCheckAt(long lastFuelCheckAt) {
         this.lastFuelCheckAt = lastFuelCheckAt;
     }
@@ -203,6 +247,42 @@ public class Camp {
         this.fatigueLevel = Math.max(0, fatigueLevel);
     }
 
+    public int getStorageLevel() { return storageLevel; }
+
+    public void setStorageLevel(int storageLevel) { this.storageLevel = Math.max(0, storageLevel); }
+
+    public int getEfficiencyLevel() { return efficiencyLevel; }
+
+    public void setEfficiencyLevel(int efficiencyLevel) { this.efficiencyLevel = Math.max(0, efficiencyLevel); }
+
+    public void addStoredMoney(double amount) {
+        if (amount <= 0.0) {
+            return;
+        }
+        setStoredMoney(storedMoney + amount);
+    }
+
+    public void addStoredItem(String identity, int amount) {
+        if (identity == null || identity.isEmpty() || amount <= 0) {
+            return;
+        }
+        int allowed = Math.max(0, maxStoredItems - getStoredItemTotal());
+        if (allowed <= 0) {
+            return;
+        }
+        int toStore = Math.min(allowed, amount);
+        storedItems.merge(identity, toStore, Integer::sum);
+        clampStoredItems();
+    }
+
+    public int getStoredItemTotal() {
+        return storedItems.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    public void clearStoredItems() {
+        storedItems.clear();
+    }
+
     public void resetMaintenance(long now, long nextDue) {
         this.lastMaintainedAt = now;
         this.nextMaintenanceAt = nextDue;
@@ -218,6 +298,26 @@ public class Camp {
 
     public void setLastDamagedAt(long lastDamagedAt) {
         this.lastDamagedAt = lastDamagedAt;
+    }
+
+    private void clampStoredItems() {
+        int total = getStoredItemTotal();
+        if (total <= maxStoredItems) {
+            return;
+        }
+        int toRemove = total - maxStoredItems;
+        for (java.util.Iterator<java.util.Map.Entry<String, Integer>> iterator = storedItems.entrySet().iterator();
+             iterator.hasNext() && toRemove > 0; ) {
+            java.util.Map.Entry<String, Integer> entry = iterator.next();
+            int reduce = Math.min(entry.getValue(), toRemove);
+            int newAmount = entry.getValue() - reduce;
+            toRemove -= reduce;
+            if (newAmount <= 0) {
+                iterator.remove();
+            } else {
+                entry.setValue(newAmount);
+            }
+        }
     }
 
     private void normalizeBrokenState() {
