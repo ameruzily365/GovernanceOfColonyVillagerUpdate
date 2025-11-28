@@ -162,6 +162,11 @@ requests:
   givesector-timeout-seconds: 300  # 赠送领地请求的有效期（秒）
   surrender-timeout-seconds: 300   # 投降响应的有效期（秒）
 
+tpa:
+  response-timeout-seconds: 60   # 传送请求的有效期（秒）
+  cooldown-seconds: 120          # 传送请求冷却时间（秒）
+  warmup-seconds: 3              # 同意请求后等待传送的时间（秒）
+
 defaults:
   auto-id-length: 3
   state-name-format: "第%id%号殖民地"
