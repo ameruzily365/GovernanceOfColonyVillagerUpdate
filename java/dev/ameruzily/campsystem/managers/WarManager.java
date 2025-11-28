@@ -4,6 +4,7 @@ import dev.ameruzily.campsystem.CampSystem;
 import dev.ameruzily.campsystem.models.Camp;
 import dev.ameruzily.campsystem.models.SoundSettings;
 import dev.ameruzily.campsystem.models.WarData;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
