@@ -4,7 +4,7 @@
 
 camp:
   max-hp: 100
-  heal-rate: 0.5        # 每周期自动恢复
+  heal-rate: 2.5       # 每周期自动恢复
   heal-interval: 600    # tick (600=30s)
   radius: 16            # 领地半径（以方块为单位）
   fuel:
@@ -69,14 +69,14 @@ camp:
           items:
             GHAST_TEAR: 4
           items-display: "4 恶魂之泪"
-          heal-rate: 0.8
+          heal-rate: 5
         2:
           cost: 9000
           cost-display: "9000 ₿"
           items:
             GOLDEN_APPLE: 8
           items-display: "8 金苹果"
-          heal-rate: 1.2
+          heal-rate: 7.5
     fatigue:
       enabled: true
       display: "挖掘疲劳"

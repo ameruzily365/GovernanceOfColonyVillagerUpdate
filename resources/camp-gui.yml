@@ -15,10 +15,6 @@ gui:
         lore:
           - "&6🔥 &f%fuel%/&f%maxfuel%"
           - "&9⏳ &f%fuel_time%"
-      citizen: 
-        slot: 34
-        item: "itemsadder:gocmc:blank_slot"
-        name: "&c✘ 敬情期待…"
       close:
         slot: 43
         item: "itemsadder:gocmc:blank_slot"
@@ -35,7 +31,7 @@ gui:
           - "&7大大增加了运行效率。"
         action: "open:fuel"
       production:
-        slots: [14, 23]
+        slot: 34
         item: "itemsadder:gocmc:blank_slot"
         name: "&e领取 &f产出"
         lore:
@@ -120,72 +116,77 @@ gui:
       action: "open:main"
 #-----------------------essential_end-----------------------
     options:
-      citizen:
+      production:
         slot: 34
         item: "itemsadder:gocmc:blank_slot"
-        name: "&c✘ 敬情期待…"
+        name: "&e领取 &f产出"
+        lore:
+          - "&7已累积金钱: &f%production_money%/&f%production_money_max%"
+          - "&7已累积物资: &f%production_items%/&f%production_items_max%"
+          - "&7产出间隔: &f%production_interval%"
+        action: "collect:production"
       lignite:
         slot: 12
         item: "itemsadder:gocmc:lignite"
         name: "&e添加 &f褐煤"
         lore:
-          - "&7燃料: +0.5"
+          - "&7燃料: +1"
         amount: 1
-        fuel: 0.5
+        fuel: 1
         action: "fuel:lignite"
       coal:
         slot: 13
         item: "COAL"
         name: "&e添加 &f煤炭"
         lore:
-          - "&7燃料: +1"
+          - "&7燃料: +2"
         amount: 1
-        fuel: 1
+        fuel: 2
         action: "fuel:coal"
       lignite_black:
         slot: 21
         item: "itemsadder:gocmc:lignite_black"
         name: "&e添加 &f黑褐煤"
         lore:
-          - "&7燃料: +1"
+          - "&7燃料: +2"
         amount: 1
-        fuel: 1
+        fuel: 2
         action: "fuel:lignite_black"
       charcoal:
         slot: 22
         item: "CHARCOAL"
         name: "&e添加 &f木炭"
         lore:
-          - "&7燃料: +1.5"
+          - "&7燃料: +3"
         amount: 1
-        fuel: 1.5
+        fuel: 3
         action: "fuel:charcoal"
       coal_dust:
         slot: 28
         item: "itemsadder:gocmc:coal_dust"
         name: "&e添加 &f炭粉"
         lore:
-          - "&7燃料: +1.5"
+          - "&7燃料: +3"
         amount: 1
-        fuel: 1.5
+        fuel: 3
         action: "fuel:coal_dust"
       charcoal_dust:
         slot: 29
         item: "itemsadder:gocmc:charcoal_dust"
         name: "&e添加 &f木炭粉"
         lore:
-          - "&7燃料: +2"
+          - "&7燃料: +4"
         amount: 1
-        fuel: 2
+        fuel: 4
         action: "fuel:charcoal_dust"
       anthracite:
         slot: 30
         item: "itemsadder:gocmc:anthracite"
         name: "&e添加 &f无烟煤"
         lore:
-          - "&7燃料: +3"
+          - "&7燃料: +5"
         amount: 1
-        fuel: 3
+        fuel: 5
         action: "fuel:anthracite"
         
   ideology:
@@ -338,10 +339,15 @@ gui:
         lore:
           - "&6🔥 &f%fuel%/&f%maxfuel%"
           - "&9⏳ &f%fuel_time%"
-      citizen: 
+      production:
         slot: 34
         item: "itemsadder:gocmc:blank_slot"
-        name: "&c✘ 敬情期待…"
+        name: "&e领取 &f产出"
+        lore:
+          - "&7已累积金钱: &f%production_money%/&f%production_money_max%"
+          - "&7已累积物资: &f%production_items%/&f%production_items_max%"
+          - "&7产出间隔: &f%production_interval%"
+        action: "collect:production"
       back:
         slot: 43
         item: "itemsadder:gocmc:blank_slot"
@@ -400,7 +406,7 @@ gui:
           #- "&7状态: &f%upgrade_fatigue_status%"
         action: "upgrade:fatigue"
       storage:
-        slot: 14
+        slot: 19
         item: "itemsadder:gocmc:blank_slot"
         name: "&e升级 &f存储上限"
         lore:
@@ -413,7 +419,7 @@ gui:
           - " &9%upgrade_storage_items%"
         action: "upgrade:storage"
       efficiency:
-        slot: 15
+        slot: 20
         item: "itemsadder:gocmc:blank_slot"
         name: "&e升级 &f产出效率"
         lore:
