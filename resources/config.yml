@@ -149,8 +149,7 @@ camp:
           cost-display: "14000 ₿"
           items:
             OBSIDIAN: 64
-            ENDER_PEARL: 12
-          items-display: "64 黑曜石, 12 末影珍珠"
+          items-display: "64 黑曜石"
           boundary-radius: 8
   move:
     cost: 0.0

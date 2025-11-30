@@ -430,3 +430,19 @@ gui:
           - " &9%upgrade_efficiency_cost%"
           - " &9%upgrade_efficiency_items%"
         action: "upgrade:efficiency"
+      boundary:
+        slot: 21
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e升级 &f边界扩展"
+        lore:
+          - "&7lv.%upgrade_boundary_level% → lv.%upgrade_boundary_next_level%"
+          - "&7下一级扩展: &f%upgrade_boundary_next_boundary%"
+          - ""
+          - "&7所需材料: "
+          - " &9%upgrade_boundary_cost%"
+          - " &9%upgrade_boundary_items%"
+        action: "upgrade:boundary"
+      module_switch:
+        slot: 22
+        item: "itemsadder:gocmc:blank_slot"
+        name: "&e切换 &f一次性升级模块"
