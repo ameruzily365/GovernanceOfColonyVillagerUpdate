@@ -1231,6 +1231,10 @@ public class WarManager {
         }
     }
 
+    public void clearModuleEffects(Player player) {
+        seasonsHook.clearTemperatureEffect(player);
+    }
+
     private void applyModuleEffect(Player player, ModuleDefinition definition) {
         if (player == null || definition == null || definition.effect() == null) {
             return;

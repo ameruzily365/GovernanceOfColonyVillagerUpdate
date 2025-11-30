@@ -332,6 +332,7 @@ public class CampProtectionListener implements Listener {
             }
             fatigueStates.remove(id);
             removeFatigue(player);
+            plugin.war().clearModuleEffects(player);
             return;
         }
 
@@ -345,6 +346,7 @@ public class CampProtectionListener implements Listener {
             if (current != null) {
                 showBoundary(player, current.stateName(), current.sectorName());
             }
+            plugin.war().clearModuleEffects(player);
         }
 
         currentZones.put(id, current);
@@ -357,6 +359,7 @@ public class CampProtectionListener implements Listener {
         fatigueStates.remove(id);
         currentZones.remove(id);
         removeFatigue(player);
+        plugin.war().clearModuleEffects(player);
     }
 
     private void applyFatigue(Player player, int amplifier) {
