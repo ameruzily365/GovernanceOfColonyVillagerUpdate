@@ -10,6 +10,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.event.block.BlockIgniteEvent;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -18,6 +19,8 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.block.BlockSpreadEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import dev.lone.itemsadder.api.Events.FurniturePlaceEvent;
 import org.bukkit.Particle;
 import org.bukkit.potion.PotionEffect;
@@ -35,6 +38,8 @@ import java.lang.reflect.Method;
 public class CampProtectionListener implements Listener {
 
     private static final PotionEffectType FATIGUE_TYPE = PotionEffectType.MINING_FATIGUE;
+    private static final String MODULE_MOB_SUPPRESSION = "mob-spawn-suppression";
+    private static final String MODULE_FIRE_SPREAD = "fire-spread-suppression";
 
     private final CampSystem plugin;
     private final Map<UUID, String> fatigueStates = new HashMap<>();
@@ -297,6 +302,40 @@ public class CampProtectionListener implements Listener {
         }
     }
 
+    @EventHandler(ignoreCancelled = true)
+    public void onCreatureSpawn(CreatureSpawnEvent event) {
+        if (!isNaturalSpawn(event.getSpawnReason())) {
+            return;
+        }
+        StateManager.CampSectorInfo info = findActiveCamp(event.getLocation());
+        if (info != null && plugin.war().isModuleActive(MODULE_MOB_SUPPRESSION, info)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockSpread(BlockSpreadEvent event) {
+        if (!isFire(event.getSource())) {
+            return;
+        }
+        StateManager.CampSectorInfo info = findActiveCamp(event.getBlock().getLocation());
+        if (info != null && plugin.war().isModuleActive(MODULE_FIRE_SPREAD, info)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockIgnite(BlockIgniteEvent event) {
+        BlockIgniteEvent.IgniteCause cause = event.getCause();
+        if (cause != BlockIgniteEvent.IgniteCause.SPREAD && cause != BlockIgniteEvent.IgniteCause.LAVA) {
+            return;
+        }
+        StateManager.CampSectorInfo info = findActiveCamp(event.getBlock().getLocation());
+        if (info != null && plugin.war().isModuleActive(MODULE_FIRE_SPREAD, info)) {
+            event.setCancelled(true);
+        }
+    }
+
     public void clearCampEffects(String state, String sector) {
         String key = buildKey(state, sector);
         for (UUID id : new HashSet<>(fatigueStates.keySet())) {
@@ -320,6 +359,24 @@ public class CampProtectionListener implements Listener {
         return plugin.war().getCamp(info.stateName(), info.sectorName()) != null ? info : null;
     }
 
+    private boolean isNaturalSpawn(CreatureSpawnEvent.SpawnReason reason) {
+        if (reason == null) {
+            return false;
+        }
+        return switch (reason) {
+            case NATURAL, NETHER_PORTAL, JOCKEY, CHUNK_GEN, VILLAGE_INVASION, VILLAGE_DEFENSE, REINFORCEMENTS, PATROL -> true;
+            default -> false;
+        };
+    }
+
+    private boolean isFire(Block block) {
+        if (block == null) {
+            return false;
+        }
+        Material type = block.getType();
+        return type == Material.FIRE || type == Material.SOUL_FIRE;
+    }
+
     private void updatePlayerZone(Player player, Location location) {
         UUID id = player.getUniqueId();
         StateManager.CampSectorInfo previous = currentZones.get(id);
@@ -332,6 +389,7 @@ public class CampProtectionListener implements Listener {
             }
             fatigueStates.remove(id);
             removeFatigue(player);
+            plugin.war().clearModuleEffects(player);
             return;
         }
 
@@ -345,6 +403,7 @@ public class CampProtectionListener implements Listener {
             if (current != null) {
                 showBoundary(player, current.stateName(), current.sectorName());
             }
+            plugin.war().clearModuleEffects(player);
         }
 
         currentZones.put(id, current);
@@ -357,6 +416,7 @@ public class CampProtectionListener implements Listener {
         fatigueStates.remove(id);
         currentZones.remove(id);
         removeFatigue(player);
+        plugin.war().clearModuleEffects(player);
     }
 
     private void applyFatigue(Player player, int amplifier) {

@@ -1,7 +1,6 @@
 package dev.ameruzily.campsystem.managers;
 
 import dev.ameruzily.campsystem.CampSystem;
-import dev.ameruzily.campsystem.integrations.RealisticSeasonsHook;
 import dev.ameruzily.campsystem.models.Camp;
 import dev.ameruzily.campsystem.models.SoundSettings;
 import dev.ameruzily.campsystem.models.WarData;
@@ -50,8 +49,6 @@ public class WarManager {
     private double baseHealRate;
     private int baseFatigueAmplifier;
 
-    private final RealisticSeasonsHook seasonsHook;
-
     private boolean productionEnabled;
     private long baseProductionIntervalMs;
     private double productionMoney;
@@ -61,7 +58,6 @@ public class WarManager {
 
     public WarManager(CampSystem plugin) {
         this.plugin = plugin;
-        this.seasonsHook = new RealisticSeasonsHook(plugin);
         reloadUpgradeSettings();
         loadModuleSettings();
         loadProductionSettings();
@@ -298,8 +294,9 @@ public class WarManager {
             String itemsDisplay = entry.getString("items-display", plugin.state().describeMaterials(materials));
             ConfigurationSection effectSection = entry.getConfigurationSection("effect");
             String type = effectSection != null ? effectSection.getString("type", "") : "";
-            double temperature = effectSection != null ? effectSection.getDouble("temperature", 20.0) : 20.0;
-            ModuleEffect effect = new ModuleEffect(type, temperature);
+            double value = effectSection != null ? effectSection.getDouble("value", 0.0)
+                    : effectSection != null ? effectSection.getDouble("temperature", 0.0) : 0.0;
+            ModuleEffect effect = new ModuleEffect(type, value);
             moduleDefinitions.put(key, new ModuleDefinition(key, enabled, display, cost, costDisplay, itemsDisplay, materials, effect));
         }
     }
@@ -1209,41 +1206,15 @@ public class WarManager {
     }
 
     public void applyModuleEffects(Player player, StateManager.CampSectorInfo info) {
-        if (player == null || info == null) {
-            return;
-        }
-        Camp camp = getCamp(info.stateName(), info.sectorName());
-        if (camp == null) {
-            return;
-        }
-        for (Map.Entry<String, ModuleDefinition> entry : moduleDefinitions.entrySet()) {
-            ModuleDefinition definition = entry.getValue();
-            if (definition == null || !definition.enabled()) {
-                continue;
-            }
-            if (!camp.isModuleEnabled(entry.getKey())) {
-                continue;
-            }
-            if (!isModuleSupported(definition)) {
-                continue;
-            }
-            applyModuleEffect(player, definition);
-        }
+        // No-op placeholder for future player-applied module effects.
+    }
+
+    public void clearModuleEffects(Player player) {
+        // No-op placeholder for future player-applied module effects.
     }
 
     private void applyModuleEffect(Player player, ModuleDefinition definition) {
-        if (player == null || definition == null || definition.effect() == null) {
-            return;
-        }
-        String type = definition.effect().type();
-        if (type == null) {
-            return;
-        }
-        switch (type.toLowerCase(Locale.ROOT)) {
-            case "realisticseasons-temperature" -> seasonsHook.applyStableTemperature(player, definition.effect().temperature());
-            default -> {
-            }
-        }
+        // No-op placeholder for future player-applied module effects.
     }
 
     public void applySectorTransfer(String fromState, String fromSector, String toState, String toSector) {
@@ -2876,17 +2847,19 @@ public class WarManager {
     }
 
     public boolean isModuleSupported(ModuleDefinition definition) {
-        if (definition == null) {
+        return definition != null;
+    }
+
+    public boolean isModuleActive(String moduleKey, StateManager.CampSectorInfo info) {
+        if (moduleKey == null || info == null) {
             return false;
         }
-        ModuleEffect effect = definition.effect();
-        if (effect == null || effect.type() == null || effect.type().isEmpty()) {
-            return true;
+        ModuleDefinition definition = getModuleDefinition(moduleKey);
+        if (definition == null || !definition.enabled() || !isModuleSupported(definition)) {
+            return false;
         }
-        return switch (effect.type().toLowerCase(Locale.ROOT)) {
-            case "realisticseasons-temperature" -> seasonsHook.isAvailable();
-            default -> true;
-        };
+        Camp camp = getCamp(info.stateName(), info.sectorName());
+        return camp != null && camp.isModuleEnabled(moduleKey);
     }
 
     private String normalizeModuleKey(String key) {
@@ -2897,7 +2870,7 @@ public class WarManager {
                                    String itemsDisplay, Map<StateManager.ItemDescriptor, Integer> items,
                                    ModuleEffect effect) { }
 
-    public record ModuleEffect(String type, double temperature) { }
+    public record ModuleEffect(String type, double value) { }
 
     public UpgradeTree getUpgradeTree(CampUpgradeType type) {
         return upgradeTrees.get(type);
