@@ -246,7 +246,10 @@ public class StateOverviewGuiManager implements Listener {
         if (event.getPlayer() == null) {
             return;
         }
-        contexts.remove(event.getPlayer().getUniqueId());
+        OverviewContext context = contexts.get(event.getPlayer().getUniqueId());
+        if (context != null && event.getInventory() != null && event.getInventory().equals(context.inventory)) {
+            contexts.remove(event.getPlayer().getUniqueId());
+        }
     }
 
     @EventHandler

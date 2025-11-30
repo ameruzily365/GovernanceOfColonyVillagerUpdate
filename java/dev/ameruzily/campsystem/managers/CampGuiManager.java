@@ -31,6 +31,7 @@ public class CampGuiManager implements Listener {
     private GuiLayout mainLayout;
     private GuiLayout ideologyLayout;
     private GuiLayout upgradeLayout;
+    private GuiLayout moduleLayout;
     private FuelLayout fuelLayout;
     private final Map<UUID, GuiContext> contexts = new HashMap<>();
     private final Map<UUID, PendingInput> pendingInputs = new ConcurrentHashMap<>();
@@ -63,6 +64,7 @@ public class CampGuiManager implements Listener {
         mainLayout = GuiLayout.fromConfig(yaml.getConfigurationSection("gui.main"));
         ideologyLayout = GuiLayout.fromConfig(yaml.getConfigurationSection("gui.ideology"));
         upgradeLayout = GuiLayout.fromConfig(yaml.getConfigurationSection("gui.upgrades"));
+        moduleLayout = GuiLayout.fromConfig(yaml.getConfigurationSection("gui.modules"));
         fuelLayout = FuelLayout.fromConfig(yaml.getConfigurationSection("gui.fuel"));
     }
 
@@ -339,6 +341,34 @@ public class CampGuiManager implements Listener {
         openUpgrades(player, camp);
     }
 
+    private void handleModule(Player player, Camp camp, String moduleKey) {
+        if (player == null || camp == null || moduleKey == null || moduleKey.isEmpty()) {
+            return;
+        }
+        StateManager.CampModuleOutcome outcome = plugin.state().toggleModule(player, camp, moduleKey);
+        WarManager.ModuleDefinition definition = outcome.getDefinition();
+        String display = definition != null && definition.display() != null ? definition.display() : moduleKey;
+        Map<String, String> vars = new HashMap<>();
+        vars.put("module", display);
+        vars.put("cost", outcome.getDisplayCost());
+        vars.put("items", outcome.getRequiredItems());
+        switch (outcome.getStatus()) {
+            case PURCHASED -> plugin.lang().send(player, "state.module-purchased", vars);
+            case ENABLED -> plugin.lang().send(player, "state.module-enabled", vars);
+            case DISABLED -> plugin.lang().send(player, "state.module-disabled", vars);
+            case NO_PERMISSION -> plugin.lang().send(player, "state.sector-no-permission");
+            case NO_STATE -> plugin.lang().send(player, "camp.not-found");
+            case CONFIG_DISABLED -> plugin.lang().send(player, "state.module-config-disabled", vars);
+            case MISSING_ITEMS -> plugin.lang().send(player, "state.module-missing-items", vars);
+            case NO_ECONOMY -> plugin.lang().send(player, "state.capital-move-no-economy");
+            case INSUFFICIENT_FUNDS -> plugin.lang().send(player, "state.capital-move-no-funds", Map.of(
+                    "cost", outcome.getDisplayCost()
+            ));
+            case PAYMENT_FAILED -> plugin.lang().send(player, "state.capital-move-payment-failed");
+        }
+        openModules(player, camp);
+    }
+
     private void handleCapitalButton(Player player, Camp camp) {
         if (player == null || camp == null) {
             return;
@@ -598,6 +628,31 @@ public class CampGuiManager implements Listener {
         player.openInventory(inv);
     }
 
+    private void openModules(Player player, Camp camp) {
+        if (player == null || camp == null || moduleLayout == null) {
+            return;
+        }
+        if (!ensureSameState(player, camp)) {
+            return;
+        }
+        if (!plugin.state().canManageCamp(player, camp)) {
+            plugin.lang().send(player, "state.sector-no-permission");
+            return;
+        }
+        FuelSnapshot snapshot = fuelSnapshot(camp);
+        Map<String, String> extras = buildGuiPlaceholders(camp);
+        Inventory inv = plugin.getServer().createInventory(null, moduleLayout.rows * 9,
+                colorize(applyCamp(moduleLayout.title, camp, snapshot, extras)));
+        Map<Integer, GuiButton> buttons = new HashMap<>();
+        for (GuiButton button : moduleLayout.buttons.values()) {
+            ItemStack item = renderButton(button, camp, snapshot, extras);
+            placeButton(inv, buttons, button, item);
+        }
+        contexts.put(player.getUniqueId(), new GuiContext(camp, GuiPage.MODULES, buttons, inv, extras));
+        switching.add(player.getUniqueId());
+        player.openInventory(inv);
+    }
+
     private void placeButton(Inventory inv, Map<Integer, GuiButton> buttons, GuiButton button, ItemStack baseItem) {
         if (button == null || inv == null || buttons == null || baseItem == null) {
             return;
@@ -730,6 +785,10 @@ public class CampGuiManager implements Listener {
             openUpgrades(player, camp);
             return;
         }
+        if (action.equalsIgnoreCase("open:modules")) {
+            openModules(player, camp);
+            return;
+        }
         if (action.equalsIgnoreCase("collect:production")) {
             handleCollectProduction(player, camp);
             return;
@@ -760,6 +819,11 @@ public class CampGuiManager implements Listener {
         if (action.toLowerCase(Locale.ROOT).startsWith("upgrade:")) {
             String raw = action.substring("upgrade:".length());
             handleUpgrade(player, camp, raw);
+            return;
+        }
+        if (action.toLowerCase(Locale.ROOT).startsWith("module:")) {
+            String raw = action.substring("module:".length());
+            handleModule(player, camp, raw);
             return;
         }
         if (action.startsWith("fuel:")) {
@@ -982,6 +1046,37 @@ public class CampGuiManager implements Listener {
                 map.put(prefix + "next_boundary%", disabledText);
             }
         }
+        for (Map.Entry<String, WarManager.ModuleDefinition> entry : plugin.war().getModuleDefinitions().entrySet()) {
+            WarManager.ModuleDefinition definition = entry.getValue();
+            if (definition == null) {
+                continue;
+            }
+            String key = entry.getKey();
+            String prefix = "%module_" + key + "_";
+            String display = definition.display() != null ? definition.display() : key;
+            String costDisplay = definition.costDisplay() != null ? definition.costDisplay() : plugin.state().formatMoney(definition.cost());
+            String itemsDisplay = definition.itemsDisplay() != null ? definition.itemsDisplay() : plugin.state().describeMaterials(definition.items());
+            boolean unlocked = camp.hasModule(key);
+            boolean enabled = camp.isModuleEnabled(key);
+            boolean supported = plugin.war().isModuleSupported(definition);
+            map.put(prefix + "display%", display);
+            map.put(prefix + "cost%", costDisplay);
+            map.put(prefix + "items%", itemsDisplay);
+            map.put(prefix + "enabled%", String.valueOf(enabled && supported));
+            String statusKey;
+            if (!supported) {
+                statusKey = "state.module-status-unsupported";
+            } else if (!unlocked) {
+                statusKey = "state.module-status-locked";
+            } else if (enabled) {
+                statusKey = "state.module-status-enabled";
+            } else {
+                statusKey = "state.module-status-disabled";
+            }
+            String actionKey = !unlocked ? "state.module-action-unlock" : (enabled ? "state.module-action-disable" : "state.module-action-enable");
+            map.put(prefix + "status%", plugin.lang().messageOrDefault(statusKey, statusKey));
+            map.put(prefix + "action%", plugin.lang().messageOrDefault(actionKey, actionKey));
+        }
         return map;
     }
 
@@ -1095,7 +1190,7 @@ public class CampGuiManager implements Listener {
         }
     }
 
-    private enum GuiPage { MAIN, FUEL, IDEOLOGY, UPGRADES }
+    private enum GuiPage { MAIN, FUEL, IDEOLOGY, UPGRADES, MODULES }
 
     private record GuiLayout(String title, int rows, Map<String, GuiButton> buttons) {
         static GuiLayout fromConfig(ConfigurationSection section) {
