@@ -37,6 +37,7 @@ public class Camp {
     private int efficiencyLevel;
     private int boundaryLevel;
     private CampBoundary boundary;
+    private final java.util.Map<String, Boolean> modules = new java.util.HashMap<>();
 
     public Camp(String id, String stateName, String sectorName, double maxHp) {
         this.id = id;
@@ -266,6 +267,42 @@ public class Camp {
     public CampBoundary getBoundary() { return boundary; }
 
     public void setBoundary(CampBoundary boundary) { this.boundary = boundary == null ? null : boundary.copy(); }
+
+    public java.util.Map<String, Boolean> getModules() { return java.util.Collections.unmodifiableMap(modules); }
+
+    public boolean hasModule(String key) { return key != null && modules.containsKey(normalizeModuleKey(key)); }
+
+    public boolean isModuleEnabled(String key) {
+        if (key == null) {
+            return false;
+        }
+        Boolean value = modules.get(normalizeModuleKey(key));
+        return value != null && value;
+    }
+
+    public void setModuleState(String key, boolean enabled) {
+        if (key == null) {
+            return;
+        }
+        modules.put(normalizeModuleKey(key), enabled);
+    }
+
+    public void setModules(java.util.Map<String, Boolean> state) {
+        modules.clear();
+        if (state == null) {
+            return;
+        }
+        for (java.util.Map.Entry<String, Boolean> entry : state.entrySet()) {
+            if (entry.getKey() == null) {
+                continue;
+            }
+            modules.put(normalizeModuleKey(entry.getKey()), entry.getValue() != null && entry.getValue());
+        }
+    }
+
+    private String normalizeModuleKey(String key) {
+        return key == null ? "" : key.toLowerCase(java.util.Locale.ROOT);
+    }
 
     public void addStoredMoney(double amount) {
         if (amount <= 0.0) {

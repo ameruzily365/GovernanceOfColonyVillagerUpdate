@@ -1,6 +1,7 @@
 package dev.ameruzily.campsystem.managers;
 
 import dev.ameruzily.campsystem.CampSystem;
+import dev.ameruzily.campsystem.integrations.RealisticSeasonsHook;
 import dev.ameruzily.campsystem.models.Camp;
 import dev.ameruzily.campsystem.models.SoundSettings;
 import dev.ameruzily.campsystem.models.WarData;
@@ -43,10 +44,13 @@ public class WarManager {
     private BukkitTask autoHealTask;
 
     private final Map<CampUpgradeType, UpgradeTree> upgradeTrees = new EnumMap<>(CampUpgradeType.class);
+    private final Map<String, ModuleDefinition> moduleDefinitions = new LinkedHashMap<>();
     private double baseMaxHp;
     private int baseMaxFuel;
     private double baseHealRate;
     private int baseFatigueAmplifier;
+
+    private final RealisticSeasonsHook seasonsHook;
 
     private boolean productionEnabled;
     private long baseProductionIntervalMs;
@@ -57,7 +61,9 @@ public class WarManager {
 
     public WarManager(CampSystem plugin) {
         this.plugin = plugin;
+        this.seasonsHook = new RealisticSeasonsHook(plugin);
         reloadUpgradeSettings();
+        loadModuleSettings();
         loadProductionSettings();
         startAutoHealTask();
         startMaintenanceTask();
@@ -65,6 +71,7 @@ public class WarManager {
 
     public void reloadSettings() {
         reloadUpgradeSettings();
+        loadModuleSettings();
         loadProductionSettings();
         reapplyUpgrades();
         startAutoHealTask();
@@ -269,6 +276,32 @@ public class WarManager {
             }
         }
         return new UpgradeTree(type, enabled, tiers, display);
+    }
+
+    private void loadModuleSettings() {
+        moduleDefinitions.clear();
+        ConfigurationSection section = plugin.getConfig().getConfigurationSection("modules");
+        if (section == null) {
+            return;
+        }
+        for (String rawKey : section.getKeys(false)) {
+            String key = normalizeModuleKey(rawKey);
+            ConfigurationSection entry = section.getConfigurationSection(rawKey);
+            if (entry == null) {
+                continue;
+            }
+            boolean enabled = entry.getBoolean("enabled", true);
+            String display = entry.getString("display", rawKey);
+            double cost = Math.max(0.0, entry.getDouble("cost", 0.0));
+            String costDisplay = entry.getString("cost-display", null);
+            Map<StateManager.ItemDescriptor, Integer> materials = plugin.state().loadItemRequirements("modules." + rawKey + ".items");
+            String itemsDisplay = entry.getString("items-display", plugin.state().describeMaterials(materials));
+            ConfigurationSection effectSection = entry.getConfigurationSection("effect");
+            String type = effectSection != null ? effectSection.getString("type", "") : "";
+            double temperature = effectSection != null ? effectSection.getDouble("temperature", 20.0) : 20.0;
+            ModuleEffect effect = new ModuleEffect(type, temperature);
+            moduleDefinitions.put(key, new ModuleDefinition(key, enabled, display, cost, costDisplay, itemsDisplay, materials, effect));
+        }
     }
 
     private void reapplyUpgrades() {
@@ -1175,6 +1208,44 @@ public class WarManager {
         plugin.state().recalculateCampBoundary(camp, baseRadius, boundaryBonus);
     }
 
+    public void applyModuleEffects(Player player, StateManager.CampSectorInfo info) {
+        if (player == null || info == null) {
+            return;
+        }
+        Camp camp = getCamp(info.stateName(), info.sectorName());
+        if (camp == null) {
+            return;
+        }
+        for (Map.Entry<String, ModuleDefinition> entry : moduleDefinitions.entrySet()) {
+            ModuleDefinition definition = entry.getValue();
+            if (definition == null || !definition.enabled()) {
+                continue;
+            }
+            if (!camp.isModuleEnabled(entry.getKey())) {
+                continue;
+            }
+            if (!isModuleSupported(definition)) {
+                continue;
+            }
+            applyModuleEffect(player, definition);
+        }
+    }
+
+    private void applyModuleEffect(Player player, ModuleDefinition definition) {
+        if (player == null || definition == null || definition.effect() == null) {
+            return;
+        }
+        String type = definition.effect().type();
+        if (type == null) {
+            return;
+        }
+        switch (type.toLowerCase(Locale.ROOT)) {
+            case "realisticseasons-temperature" -> seasonsHook.applyStableTemperature(player, definition.effect().temperature());
+            default -> {
+            }
+        }
+    }
+
     public void applySectorTransfer(String fromState, String fromSector, String toState, String toSector) {
         if (fromState == null || fromSector == null || toState == null || toSector == null) {
             return;
@@ -1325,6 +1396,14 @@ public class WarManager {
                 camp.setStorageLevel(campSection.getInt("storage-level", 0));
                 camp.setEfficiencyLevel(campSection.getInt("efficiency-level", 0));
                 camp.setBoundaryLevel(campSection.getInt("boundary-level", 0));
+                ConfigurationSection moduleSection = campSection.getConfigurationSection("modules");
+                if (moduleSection != null) {
+                    Map<String, Boolean> moduleStates = new HashMap<>();
+                    for (String moduleKey : moduleSection.getKeys(false)) {
+                        moduleStates.put(moduleKey, moduleSection.getBoolean(moduleKey, false));
+                    }
+                    camp.setModules(moduleStates);
+                }
                 applyCampUpgrades(camp);
 
                 camp.setStoredMoney(campSection.getDouble("stored-money", 0.0));
@@ -2787,6 +2866,38 @@ public class WarManager {
         NOT_AT_WAR,
         INVALID
     }
+
+    public Map<String, ModuleDefinition> getModuleDefinitions() {
+        return Collections.unmodifiableMap(moduleDefinitions);
+    }
+
+    public ModuleDefinition getModuleDefinition(String key) {
+        return key == null ? null : moduleDefinitions.get(normalizeModuleKey(key));
+    }
+
+    public boolean isModuleSupported(ModuleDefinition definition) {
+        if (definition == null) {
+            return false;
+        }
+        ModuleEffect effect = definition.effect();
+        if (effect == null || effect.type() == null || effect.type().isEmpty()) {
+            return true;
+        }
+        return switch (effect.type().toLowerCase(Locale.ROOT)) {
+            case "realisticseasons-temperature" -> seasonsHook.isAvailable();
+            default -> true;
+        };
+    }
+
+    private String normalizeModuleKey(String key) {
+        return key == null ? "" : key.toLowerCase(Locale.ROOT);
+    }
+
+    public record ModuleDefinition(String key, boolean enabled, String display, double cost, String costDisplay,
+                                   String itemsDisplay, Map<StateManager.ItemDescriptor, Integer> items,
+                                   ModuleEffect effect) { }
+
+    public record ModuleEffect(String type, double temperature) { }
 
     public UpgradeTree getUpgradeTree(CampUpgradeType type) {
         return upgradeTrees.get(type);

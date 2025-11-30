@@ -349,6 +349,7 @@ public class CampProtectionListener implements Listener {
 
         currentZones.put(id, current);
         handleFatigue(player, current);
+        plugin.war().applyModuleEffects(player, current);
     }
 
     private void clearPlayer(Player player) {
