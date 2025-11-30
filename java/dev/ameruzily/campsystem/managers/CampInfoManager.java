@@ -215,9 +215,6 @@ public class CampInfoManager {
                     campSection.set("fatigue-level", camp.getFatigueLevel());
                     campSection.set("storage-level", camp.getStorageLevel());
                     campSection.set("efficiency-level", camp.getEfficiencyLevel());
-                    if (!camp.getModules().isEmpty()) {
-                        campSection.createSection("modules", camp.getModules());
-                    }
                     campSection.set("stored-money", camp.getStoredMoney());
                     campSection.set("max-stored-money", camp.getMaxStoredMoney());
                     campSection.set("max-stored-items", camp.getMaxStoredItems());

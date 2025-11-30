@@ -43,7 +43,6 @@ public class WarManager {
     private BukkitTask autoHealTask;
 
     private final Map<CampUpgradeType, UpgradeTree> upgradeTrees = new EnumMap<>(CampUpgradeType.class);
-    private final Map<String, ModuleDefinition> moduleDefinitions = new LinkedHashMap<>();
     private double baseMaxHp;
     private int baseMaxFuel;
     private double baseHealRate;
@@ -59,7 +58,6 @@ public class WarManager {
     public WarManager(CampSystem plugin) {
         this.plugin = plugin;
         reloadUpgradeSettings();
-        loadModuleSettings();
         loadProductionSettings();
         startAutoHealTask();
         startMaintenanceTask();
@@ -67,7 +65,6 @@ public class WarManager {
 
     public void reloadSettings() {
         reloadUpgradeSettings();
-        loadModuleSettings();
         loadProductionSettings();
         reapplyUpgrades();
         startAutoHealTask();
@@ -272,33 +269,6 @@ public class WarManager {
             }
         }
         return new UpgradeTree(type, enabled, tiers, display);
-    }
-
-    private void loadModuleSettings() {
-        moduleDefinitions.clear();
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection("camp.modules");
-        if (section == null) {
-            return;
-        }
-        for (String rawKey : section.getKeys(false)) {
-            String key = normalizeModuleKey(rawKey);
-            ConfigurationSection entry = section.getConfigurationSection(rawKey);
-            if (entry == null) {
-                continue;
-            }
-            boolean enabled = entry.getBoolean("enabled", true);
-            String display = entry.getString("display", rawKey);
-            double cost = Math.max(0.0, entry.getDouble("cost", 0.0));
-            String costDisplay = entry.getString("cost-display", null);
-            Map<StateManager.ItemDescriptor, Integer> materials = plugin.state().loadItemRequirements("camp.modules." + rawKey + ".items");
-            String itemsDisplay = entry.getString("items-display", plugin.state().describeMaterials(materials));
-            ConfigurationSection effectSection = entry.getConfigurationSection("effect");
-            String type = effectSection != null ? effectSection.getString("type", "") : "";
-            double value = effectSection != null ? effectSection.getDouble("value", 0.0)
-                    : effectSection != null ? effectSection.getDouble("temperature", 0.0) : 0.0;
-            ModuleEffect effect = new ModuleEffect(type, value);
-            moduleDefinitions.put(key, new ModuleDefinition(key, enabled, display, cost, costDisplay, itemsDisplay, materials, effect));
-        }
     }
 
     private void reapplyUpgrades() {
@@ -1205,18 +1175,6 @@ public class WarManager {
         plugin.state().recalculateCampBoundary(camp, baseRadius, boundaryBonus);
     }
 
-    public void applyModuleEffects(Player player, StateManager.CampSectorInfo info) {
-        // No-op placeholder for future player-applied module effects.
-    }
-
-    public void clearModuleEffects(Player player) {
-        // No-op placeholder for future player-applied module effects.
-    }
-
-    private void applyModuleEffect(Player player, ModuleDefinition definition) {
-        // No-op placeholder for future player-applied module effects.
-    }
-
     public void applySectorTransfer(String fromState, String fromSector, String toState, String toSector) {
         if (fromState == null || fromSector == null || toState == null || toSector == null) {
             return;
@@ -1367,14 +1325,6 @@ public class WarManager {
                 camp.setStorageLevel(campSection.getInt("storage-level", 0));
                 camp.setEfficiencyLevel(campSection.getInt("efficiency-level", 0));
                 camp.setBoundaryLevel(campSection.getInt("boundary-level", 0));
-                ConfigurationSection moduleSection = campSection.getConfigurationSection("modules");
-                if (moduleSection != null) {
-                    Map<String, Boolean> moduleStates = new HashMap<>();
-                    for (String moduleKey : moduleSection.getKeys(false)) {
-                        moduleStates.put(moduleKey, moduleSection.getBoolean(moduleKey, false));
-                    }
-                    camp.setModules(moduleStates);
-                }
                 applyCampUpgrades(camp);
 
                 camp.setStoredMoney(campSection.getDouble("stored-money", 0.0));
@@ -2837,40 +2787,6 @@ public class WarManager {
         NOT_AT_WAR,
         INVALID
     }
-
-    public Map<String, ModuleDefinition> getModuleDefinitions() {
-        return Collections.unmodifiableMap(moduleDefinitions);
-    }
-
-    public ModuleDefinition getModuleDefinition(String key) {
-        return key == null ? null : moduleDefinitions.get(normalizeModuleKey(key));
-    }
-
-    public boolean isModuleSupported(ModuleDefinition definition) {
-        return definition != null;
-    }
-
-    public boolean isModuleActive(String moduleKey, StateManager.CampSectorInfo info) {
-        if (moduleKey == null || info == null) {
-            return false;
-        }
-        ModuleDefinition definition = getModuleDefinition(moduleKey);
-        if (definition == null || !definition.enabled() || !isModuleSupported(definition)) {
-            return false;
-        }
-        Camp camp = getCamp(info.stateName(), info.sectorName());
-        return camp != null && camp.isModuleEnabled(moduleKey);
-    }
-
-    private String normalizeModuleKey(String key) {
-        return key == null ? "" : key.toLowerCase(Locale.ROOT);
-    }
-
-    public record ModuleDefinition(String key, boolean enabled, String display, double cost, String costDisplay,
-                                   String itemsDisplay, Map<StateManager.ItemDescriptor, Integer> items,
-                                   ModuleEffect effect) { }
-
-    public record ModuleEffect(String type, double value) { }
 
     public UpgradeTree getUpgradeTree(CampUpgradeType type) {
         return upgradeTrees.get(type);

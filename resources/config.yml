@@ -151,25 +151,6 @@ camp:
             OBSIDIAN: 64
           items-display: "64 黑曜石"
           boundary-radius: 8
-  modules:
-    mob-spawn-suppression:
-      enabled: true
-      display: "生物生成抑制模块"
-      cost: 6000
-      cost-display: "6000 ₿"
-      items: { }
-      items-display: "无"
-      effect:
-        type: "mob-spawn-suppression"
-    fire-spread-suppression:
-      enabled: true
-      display: "火焰蔓延抑制模块"
-      cost: 6000
-      cost-display: "6000 ₿"
-      items: { }
-      items-display: "无"
-      effect:
-        type: "fire-spread-suppression"
   move:
     cost: 0.0
     items: { }           # 支持 ItemsAdder 物品（itemsadder:命名空间:物品）

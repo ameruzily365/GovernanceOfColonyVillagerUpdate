@@ -257,18 +257,6 @@ state:
   upgrade-name-heal: "回血效率"
   upgrade-name-fatigue: "挖掘疲劳"
   upgrade-name-boundary: "边界扩展"
-  module-purchased: "&a已解锁模块「%module%」" # 花费: %cost% 材料: %items%
-  module-enabled: "&a已开启模块「%module%」"
-  module-disabled: "&e已关闭模块「%module%」"
-  module-missing-items: "ㅅ &c缺少材料: %items%"
-  module-config-disabled: "ㅅ &c该模块未启用"
-  module-status-locked: "未解锁"
-  module-status-enabled: "已启用"
-  module-status-disabled: "已关闭"
-  module-status-unsupported: "依赖缺失"
-  module-action-unlock: "解锁"
-  module-action-enable: "开启"
-  module-action-disable: "关闭"
 
   bank:
     disabled: "ㅅ &c政权银行功能已禁用"

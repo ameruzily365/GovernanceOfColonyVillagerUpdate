@@ -30,7 +30,7 @@ public class CampPlaceholderExpansion extends PlaceholderExpansion {
 
     @Override
     public String getVersion() {
-        return "1.1.0";
+        return "2.0.0";
     }
 
     @Override

@@ -1911,67 +1911,6 @@ public class StateManager {
         return CampUpgradeOutcome.of(UpgradeStatus.SUCCESS, type, next, cost, displayCost, source, requirementText);
     }
 
-    public CampModuleOutcome toggleModule(Player player, Camp camp, String moduleKey) {
-        if (player == null || camp == null || moduleKey == null || moduleKey.isEmpty()) {
-            return CampModuleOutcome.of(ModuleStatus.NO_STATE, null, false, 0.0, formatMoney(0.0), PaymentSource.NONE, describeMaterials(Collections.emptyMap()));
-        }
-        String stateName = getStateName(player);
-        if (stateName == null || !stateName.equalsIgnoreCase(camp.getStateName())) {
-            return CampModuleOutcome.of(ModuleStatus.NO_STATE, null, false, 0.0, formatMoney(0.0), PaymentSource.NONE, describeMaterials(Collections.emptyMap()));
-        }
-        if (!canManageCamp(player, camp)) {
-            return CampModuleOutcome.of(ModuleStatus.NO_PERMISSION, null, false, 0.0, formatMoney(0.0), PaymentSource.NONE, describeMaterials(Collections.emptyMap()));
-        }
-        WarManager.ModuleDefinition definition = plugin.war().getModuleDefinition(moduleKey);
-        if (definition == null || !definition.enabled()) {
-            return CampModuleOutcome.of(ModuleStatus.CONFIG_DISABLED, definition, false, 0.0, formatMoney(0.0), PaymentSource.NONE, describeMaterials(Collections.emptyMap()));
-        }
-
-        Map<ItemDescriptor, Integer> requirements = definition.items();
-        String requirementText = definition.itemsDisplay() != null ? definition.itemsDisplay() : describeMaterials(requirements);
-        String displayCost = definition.costDisplay() != null ? definition.costDisplay() : formatMoney(definition.cost());
-        boolean unlocked = camp.hasModule(moduleKey);
-        if (!unlocked) {
-            if (!hasRequiredMaterials(player, requirements)) {
-                return CampModuleOutcome.of(ModuleStatus.MISSING_ITEMS, definition, false, definition.cost(), displayCost, PaymentSource.NONE, requirementText);
-            }
-            double cost = definition.cost();
-            PaymentSource source = PaymentSource.NONE;
-            Economy economy = plugin.economy();
-            if (cost > 0.0) {
-                StateData state = states.get(stateName);
-                if (state == null) {
-                    return CampModuleOutcome.of(ModuleStatus.NO_STATE, definition, false, cost, displayCost, PaymentSource.NONE, requirementText);
-                }
-                if (state.bankBalance >= cost) {
-                    state.bankBalance -= cost;
-                    recordTransaction(state, BankTransaction.withdraw(player.getUniqueId(), cost, state.bankBalance));
-                    source = PaymentSource.BANK;
-                } else {
-                    if (economy == null) {
-                        return CampModuleOutcome.of(ModuleStatus.NO_ECONOMY, definition, false, cost, displayCost, PaymentSource.NONE, requirementText);
-                    }
-                    EconomyResponse response = economy.withdrawPlayer(player, cost);
-                    if (response == null || !response.transactionSuccess()) {
-                        return CampModuleOutcome.of(ModuleStatus.INSUFFICIENT_FUNDS, definition, false, cost, displayCost, PaymentSource.NONE, requirementText);
-                    }
-                    source = PaymentSource.PLAYER;
-                }
-            }
-            if (!requirements.isEmpty()) {
-                consumeMaterials(player, requirements);
-            }
-            camp.setModuleState(moduleKey, true);
-            plugin.war().markDirty();
-            return CampModuleOutcome.of(ModuleStatus.PURCHASED, definition, true, definition.cost(), displayCost, source, requirementText);
-        }
-
-        boolean enabled = !camp.isModuleEnabled(moduleKey);
-        camp.setModuleState(moduleKey, enabled);
-        plugin.war().markDirty();
-        return CampModuleOutcome.of(enabled ? ModuleStatus.ENABLED : ModuleStatus.DISABLED, definition, enabled, 0.0, displayCost, PaymentSource.NONE, requirementText);
-    }
-
     private RepairSettings resolveRepairSettings(boolean capital) {
         String basePath = capital ? "camp.repair.capital" : "camp.repair.regular";
         double defaultRestore = plugin.getConfig().getDouble("camp.repair-amount", 25.0);
@@ -4533,65 +4472,12 @@ public class StateManager {
         public String getRequiredItems() { return requiredItems; }
     }
 
-    public static class CampModuleOutcome {
-        private final ModuleStatus status;
-        private final WarManager.ModuleDefinition definition;
-        private final boolean enabled;
-        private final double cost;
-        private final String displayCost;
-        private final PaymentSource source;
-        private final String requiredItems;
-
-        private CampModuleOutcome(ModuleStatus status, WarManager.ModuleDefinition definition, boolean enabled, double cost,
-                                   String displayCost, PaymentSource source, String requiredItems) {
-            this.status = status;
-            this.definition = definition;
-            this.enabled = enabled;
-            this.cost = cost;
-            this.displayCost = displayCost;
-            this.source = source;
-            this.requiredItems = requiredItems;
-        }
-
-        public static CampModuleOutcome of(ModuleStatus status, WarManager.ModuleDefinition definition, boolean enabled,
-                                           double cost, String displayCost, PaymentSource source, String requiredItems) {
-            return new CampModuleOutcome(status, definition, enabled, cost, displayCost, source, requiredItems);
-        }
-
-        public ModuleStatus getStatus() { return status; }
-
-        public WarManager.ModuleDefinition getDefinition() { return definition; }
-
-        public boolean isEnabled() { return enabled; }
-
-        public double getCost() { return cost; }
-
-        public String getDisplayCost() { return displayCost; }
-
-        public PaymentSource getSource() { return source; }
-
-        public String getRequiredItems() { return requiredItems; }
-    }
-
     public enum UpgradeStatus {
         SUCCESS,
         NO_STATE,
         NO_PERMISSION,
         DISABLED,
         MAX_LEVEL,
-        MISSING_ITEMS,
-        NO_ECONOMY,
-        INSUFFICIENT_FUNDS,
-        PAYMENT_FAILED
-    }
-
-    public enum ModuleStatus {
-        PURCHASED,
-        ENABLED,
-        DISABLED,
-        NO_STATE,
-        NO_PERMISSION,
-        CONFIG_DISABLED,
         MISSING_ITEMS,
         NO_ECONOMY,
         INSUFFICIENT_FUNDS,
