@@ -280,7 +280,7 @@ public class WarManager {
 
     private void loadModuleSettings() {
         moduleDefinitions.clear();
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection("modules");
+        ConfigurationSection section = plugin.getConfig().getConfigurationSection("camp.modules");
         if (section == null) {
             return;
         }
@@ -294,7 +294,7 @@ public class WarManager {
             String display = entry.getString("display", rawKey);
             double cost = Math.max(0.0, entry.getDouble("cost", 0.0));
             String costDisplay = entry.getString("cost-display", null);
-            Map<StateManager.ItemDescriptor, Integer> materials = plugin.state().loadItemRequirements("modules." + rawKey + ".items");
+            Map<StateManager.ItemDescriptor, Integer> materials = plugin.state().loadItemRequirements("camp.modules." + rawKey + ".items");
             String itemsDisplay = entry.getString("items-display", plugin.state().describeMaterials(materials));
             ConfigurationSection effectSection = entry.getConfigurationSection("effect");
             String type = effectSection != null ? effectSection.getString("type", "") : "";
