@@ -892,6 +892,7 @@ public class CampGuiManager implements Listener {
                 case FATIGUE -> camp.getFatigueLevel();
                 case STORAGE -> camp.getStorageLevel();
                 case EFFICIENCY -> camp.getEfficiencyLevel();
+                case BOUNDARY -> camp.getBoundaryLevel();
             };
             WarManager.UpgradeTree tree = plugin.war().getUpgradeTree(type);
             WarManager.UpgradeTier next = plugin.war().getNextTier(camp, type);
@@ -913,6 +914,7 @@ public class CampGuiManager implements Listener {
                 map.put(prefix + "next_storage_money%", disabledText);
                 map.put(prefix + "next_storage_items%", disabledText);
                 map.put(prefix + "next_interval%", disabledText);
+                map.put(prefix + "next_boundary%", disabledText);
                 map.put(prefix + "cost%", "0");
                 map.put(prefix + "items%", plugin.lang().messageOrDefault("state.repair-items-none", "无"));
                 continue;
@@ -927,6 +929,7 @@ public class CampGuiManager implements Listener {
                 map.put(prefix + "next_storage_money%", maxText);
                 map.put(prefix + "next_storage_items%", maxText);
                 map.put(prefix + "next_interval%", maxText);
+                map.put(prefix + "next_boundary%", maxText);
                 map.put(prefix + "cost%", "0");
                 map.put(prefix + "items%", plugin.lang().messageOrDefault("state.repair-items-none", "无"));
                 continue;
@@ -971,6 +974,12 @@ public class CampGuiManager implements Listener {
                 map.put(prefix + "next_interval%", plugin.war().formatDuration(next.productionIntervalSeconds() * 1000L));
             } else {
                 map.put(prefix + "next_interval%", disabledText);
+            }
+            if (next.boundaryRadiusBonus() != null) {
+                double baseRadius = Math.max(1.0, plugin.getConfig().getDouble("camp.radius", 16.0));
+                map.put(prefix + "next_boundary%", format.format(baseRadius + next.boundaryRadiusBonus()));
+            } else {
+                map.put(prefix + "next_boundary%", disabledText);
             }
         }
         return map;

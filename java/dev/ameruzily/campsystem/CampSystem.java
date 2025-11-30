@@ -22,6 +22,7 @@ public class CampSystem extends JavaPlugin {
     private PlaceholderManager placeholderManager;
     private CampHologramManager hologramManager;
     private CampGuiManager guiManager;
+    private StateOverviewGuiManager overviewGuiManager;
     private CampProtectionListener protectionListener;
     private CampInfoManager campInfoManager;
     private SoundSettings campClickSound;
@@ -55,6 +56,7 @@ public class CampSystem extends JavaPlugin {
         this.hologramManager = new CampHologramManager(this);
         this.campInfoManager = new CampInfoManager(this);
         this.guiManager = new CampGuiManager(this);
+        this.overviewGuiManager = new StateOverviewGuiManager(this);
         loadSounds();
 
         setupEconomy();
@@ -79,7 +81,7 @@ public class CampSystem extends JavaPlugin {
         // 定时清理邀请
         Bukkit.getScheduler().runTaskTimer(this, () -> stateManager.cleanupInvites(), 6000L, 6000L);
 
-        getLogger().info("GovernanceOfColony 1.0.1 Enabled.");
+        getLogger().info("GovernanceOfColony 1.0.3 Enabled.");
     }
 
     @Override
@@ -92,6 +94,9 @@ public class CampSystem extends JavaPlugin {
         }
         if (guiManager != null) {
             guiManager.closeAll();
+        }
+        if (overviewGuiManager != null) {
+            overviewGuiManager.closeAll();
         }
         if (campInfoManager != null) {
             campInfoManager.saveNow();
@@ -108,6 +113,7 @@ public class CampSystem extends JavaPlugin {
     public PlaceholderManager placeholders() { return placeholderManager; }
     public CampHologramManager holograms() { return hologramManager; }
     public CampGuiManager gui() { return guiManager; }
+    public StateOverviewGuiManager overviewGui() { return overviewGuiManager; }
     public CampProtectionListener protection() { return protectionListener; }
     public CampInfoManager campInfo() { return campInfoManager; }
     public GraveXListener getGraveXListener() { return graveXListener; }
