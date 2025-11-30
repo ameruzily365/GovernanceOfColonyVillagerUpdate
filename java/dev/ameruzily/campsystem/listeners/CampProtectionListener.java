@@ -3,6 +3,7 @@ package dev.ameruzily.campsystem.listeners;
 import dev.ameruzily.campsystem.CampSystem;
 import dev.ameruzily.campsystem.managers.StateManager;
 import dev.ameruzily.campsystem.models.Camp;
+import dev.ameruzily.campsystem.models.CampBoundary;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -495,8 +496,16 @@ public class CampProtectionListener implements Listener {
             return;
         }
 
-        double radius = protectionRadius;
-        if (radius <= 0) {
+        CampBoundary boundary = plugin.state().getSectorBoundary(stateName, sectorName);
+        if (boundary == null) {
+            return;
+        }
+        double west = boundary.west();
+        double east = boundary.east();
+        double north = boundary.north();
+        double south = boundary.south();
+        double perimeter = 2 * ((west + east) + (north + south));
+        if (perimeter <= 0.0) {
             return;
         }
 
@@ -507,9 +516,10 @@ public class CampProtectionListener implements Listener {
         int steps = Math.max(1, particleSteps);
         int points = Math.max(1, particlePoints);
         long delay = Math.max(1L, particleInterval);
-        double half = radius;
-        double side = half * 2.0;
-        double perimeter = side * 4.0;
+        double left = center.getX() - west;
+        double right = center.getX() + east;
+        double top = center.getZ() - north;
+        double bottom = center.getZ() + south;
 
         AtomicInteger index = new AtomicInteger();
         BukkitTask[] handle = new BukkitTask[1];
@@ -520,31 +530,30 @@ public class CampProtectionListener implements Listener {
                 return;
             }
 
-            int totalPoints = steps * points;
+            double distance = (perimeter / steps) * step;
             for (int i = 0; i < points; i++) {
-                double fraction = (step * points + i) / (double) totalPoints;
-                double distance = perimeter * fraction;
-                double offsetX;
-                double offsetZ;
-
-                if (distance < side) {
-                    offsetX = -half + distance;
-                    offsetZ = -half;
-                } else if (distance < side * 2) {
-                    offsetX = half;
-                    offsetZ = -half + (distance - side);
-                } else if (distance < side * 3) {
-                    offsetX = half - (distance - side * 2);
-                    offsetZ = half;
+                double offset = (double) i / points;
+                double progress = distance + offset;
+                double pos = progress % perimeter;
+                double x;
+                double z;
+                double width = right - left;
+                double height = bottom - top;
+                if (pos <= width) {
+                    x = left + pos;
+                    z = top;
+                } else if (pos <= width + height) {
+                    x = right;
+                    z = top + (pos - width);
+                } else if (pos <= width * 2 + height) {
+                    x = right - (pos - width - height);
+                    z = bottom;
                 } else {
-                    offsetX = -half;
-                    offsetZ = half - (distance - side * 3);
+                    x = left;
+                    z = bottom - (pos - width * 2 - height);
                 }
 
-                Location particleLocation = new Location(center.getWorld(),
-                        center.getX() + offsetX,
-                        center.getY() + particleHeight,
-                        center.getZ() + offsetZ);
+                Location particleLocation = new Location(center.getWorld(), x + 0.5, center.getY() + particleHeight, z + 0.5);
                 player.spawnParticle(Particle.DUST, particleLocation, 1, 0.0, 0.0, 0.0, 0.0, dust);
             }
         }, 0L, delay);

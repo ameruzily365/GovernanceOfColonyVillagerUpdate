@@ -262,8 +262,10 @@ public class WarManager {
                 Integer storageItems = entry.isInt("storage-items") ? entry.getInt("storage-items") : null;
                 Long productionInterval = entry.isLong("production-interval-seconds") || entry.isInt("production-interval-seconds")
                         ? entry.getLong("production-interval-seconds") : null;
+                Double boundaryRadius = (entry.isDouble("boundary-radius") || entry.isInt("boundary-radius"))
+                        ? entry.getDouble("boundary-radius") : null;
                 tiers.put(level, new UpgradeTier(level, cost, costDisplay, itemsDisplay, materials, maxHp, maxFuel, healRate, fatigue,
-                        storageMoney, storageItems, productionInterval));
+                        storageMoney, storageItems, productionInterval, boundaryRadius));
             }
         }
         return new UpgradeTree(type, enabled, tiers, display);
@@ -1027,6 +1029,10 @@ public class WarManager {
         return camps.get(campKey(state, sector));
     }
 
+    public java.util.Collection<Camp> getCamps() {
+        return java.util.Collections.unmodifiableCollection(camps.values());
+    }
+
     public boolean capitalHasFuel(String state) {
         String capital = plugin.state().getCapital(state);
         if (capital == null) {
@@ -1122,6 +1128,8 @@ public class WarManager {
         double storageMoney = baseStoredMoneyCap;
         int storageItems = baseStoredItemCap;
         long productionInterval = productionEnabled ? baseProductionIntervalMs : 0L;
+        double baseRadius = Math.max(1.0, plugin.getConfig().getDouble("camp.radius", 16.0));
+        double boundaryBonus = 0.0;
 
         UpgradeTier hpTier = getTier(CampUpgradeType.HP, camp.getHpLevel());
         if (hpTier != null && hpTier.maxHp() != null) {
@@ -1149,8 +1157,12 @@ public class WarManager {
             }
         }
         UpgradeTier efficiencyTier = getTier(CampUpgradeType.EFFICIENCY, camp.getEfficiencyLevel());
+        UpgradeTier boundaryTier = getTier(CampUpgradeType.BOUNDARY, camp.getBoundaryLevel());
         if (efficiencyTier != null && efficiencyTier.productionIntervalSeconds() != null) {
             productionInterval = efficiencyTier.productionIntervalSeconds() * 1000L;
+        }
+        if (boundaryTier != null && boundaryTier.boundaryRadiusBonus() != null) {
+            boundaryBonus = boundaryTier.boundaryRadiusBonus();
         }
 
         camp.setMaxHp(maxHp);
@@ -1160,6 +1172,7 @@ public class WarManager {
         camp.setMaxStoredMoney(storageMoney);
         camp.setMaxStoredItems(storageItems);
         camp.setProductionIntervalMs(productionInterval);
+        plugin.state().recalculateCampBoundary(camp, baseRadius, boundaryBonus);
     }
 
     public void applySectorTransfer(String fromState, String fromSector, String toState, String toSector) {
@@ -1311,6 +1324,7 @@ public class WarManager {
                 camp.setFatigueLevel(campSection.getInt("fatigue-level", 0));
                 camp.setStorageLevel(campSection.getInt("storage-level", 0));
                 camp.setEfficiencyLevel(campSection.getInt("efficiency-level", 0));
+                camp.setBoundaryLevel(campSection.getInt("boundary-level", 0));
                 applyCampUpgrades(camp);
 
                 camp.setStoredMoney(campSection.getDouble("stored-money", 0.0));
@@ -2802,6 +2816,7 @@ public class WarManager {
             case FATIGUE -> camp.getFatigueLevel();
             case STORAGE -> camp.getStorageLevel();
             case EFFICIENCY -> camp.getEfficiencyLevel();
+            case BOUNDARY -> camp.getBoundaryLevel();
         };
     }
 
@@ -2811,7 +2826,8 @@ public class WarManager {
         HEAL("heal"),
         FATIGUE("fatigue"),
         STORAGE("storage"),
-        EFFICIENCY("efficiency");
+        EFFICIENCY("efficiency"),
+        BOUNDARY("boundary");
 
         private final String key;
 
@@ -2827,7 +2843,8 @@ public class WarManager {
     public record UpgradeTier(int level, double cost, String costDisplay, String itemsDisplay,
                               Map<StateManager.ItemDescriptor, Integer> items,
                               Double maxHp, Integer maxFuel, Double healRate, Integer fatigueAmplifier,
-                              Double storedMoneyCap, Integer storedItemCap, Long productionIntervalSeconds) { }
+                              Double storedMoneyCap, Integer storedItemCap, Long productionIntervalSeconds,
+                              Double boundaryRadiusBonus) { }
 
     public record UpgradeTree(CampUpgradeType type, boolean enabled, Map<Integer, UpgradeTier> tiers, String display) { }
 

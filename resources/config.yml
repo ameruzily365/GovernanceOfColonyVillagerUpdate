@@ -133,6 +133,25 @@ camp:
             REDSTONE_BLOCK: 32
           items-display: "32 红石块"
           production-interval-seconds: 180
+    boundary:
+      enabled: true
+      display: "边界扩展"
+      levels:
+        1:
+          cost: 6000
+          cost-display: "6000 ₿"
+          items:
+            OBSIDIAN: 32
+          items-display: "32 黑曜石"
+          boundary-radius: 4
+        2:
+          cost: 14000
+          cost-display: "14000 ₿"
+          items:
+            OBSIDIAN: 64
+            ENDER_PEARL: 12
+          items-display: "64 黑曜石, 12 末影珍珠"
+          boundary-radius: 8
   move:
     cost: 0.0
     items: { }           # 支持 ItemsAdder 物品（itemsadder:命名空间:物品）
@@ -198,10 +217,12 @@ creation:
     cost: 0.0
     cooldown-seconds: 300
     items: { }
-  sector:
-    cost: 0.0
-    cooldown-seconds: 300
-    items: { }
+
+help:
+  page-size: 8
+
+teleport:
+  warmup-seconds: 3
 
 requests:
   invite-timeout-seconds: 300   # 入国邀请的有效期（秒）

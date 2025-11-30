@@ -2,6 +2,7 @@ package dev.ameruzily.campsystem.managers;
 
 import dev.ameruzily.campsystem.CampSystem;
 import dev.ameruzily.campsystem.models.Camp;
+import dev.ameruzily.campsystem.models.CampBoundary;
 import dev.ameruzily.campsystem.models.Ideology;
 import dev.lone.itemsadder.api.CustomStack;
 import net.milkbowl.vault.economy.Economy;
@@ -1762,32 +1763,67 @@ public class StateManager {
 
     public TeleportResult teleport(Player player, String sectorInput) {
         if (player == null) {
-            return TeleportResult.of(TeleportStatus.NO_STATE, sectorInput);
+            return TeleportResult.of(TeleportStatus.NO_STATE, sectorInput, 0L);
         }
 
         String stateName = getStateName(player);
         if (stateName == null) {
-            return TeleportResult.of(TeleportStatus.NO_STATE, sectorInput);
+            return TeleportResult.of(TeleportStatus.NO_STATE, sectorInput, 0L);
         }
 
         StateData state = states.get(stateName);
         if (state == null) {
-            return TeleportResult.of(TeleportStatus.NO_STATE, sectorInput);
+            return TeleportResult.of(TeleportStatus.NO_STATE, sectorInput, 0L);
         }
 
         String resolved = resolveSectorName(state, sectorInput);
         if (resolved == null) {
-            return TeleportResult.of(TeleportStatus.SECTOR_NOT_FOUND, sectorInput);
+            return TeleportResult.of(TeleportStatus.SECTOR_NOT_FOUND, sectorInput, 0L);
         }
 
         Location location = getSectorLocation(stateName, resolved);
         if (location == null) {
-            return TeleportResult.of(TeleportStatus.MISSING_LOCATION, resolved);
+            return TeleportResult.of(TeleportStatus.MISSING_LOCATION, resolved, 0L);
         }
 
         Location target = location.clone().add(0.5, 1.0, 0.5);
-        player.teleport(target);
-        return TeleportResult.of(TeleportStatus.SUCCESS, resolved);
+        long warmup = getStateTeleportWarmupMillis();
+        if (warmup <= 0L) {
+            player.teleport(target);
+            return TeleportResult.of(TeleportStatus.SUCCESS, resolved, 0L);
+        }
+
+        String stateNameFinal = stateName;
+        UUID uuid = player.getUniqueId();
+        plugin.lang().send(player, "state.teleport-wait", Map.of(
+                "sector", resolved,
+                "time", plugin.war().formatDuration(warmup)
+        ));
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Player live = Bukkit.getPlayer(uuid);
+            if (live == null) {
+                return;
+            }
+            String latestState = getStateName(live);
+            if (latestState == null || !latestState.equalsIgnoreCase(stateNameFinal)) {
+                plugin.lang().send(live, "state.teleport-cancelled", Map.of(
+                        "reason", plugin.lang().messageOrDefault("state.tpa-reason-state", "不在同一政权")
+                ));
+                return;
+            }
+            Location latestLocation = getSectorLocation(stateNameFinal, resolved);
+            if (latestLocation == null) {
+                plugin.lang().send(live, "state.teleport-cancelled", Map.of(
+                        "reason", plugin.lang().messageOrDefault("state.sector-not-found", "目标不存在")
+                ));
+                return;
+            }
+            live.teleport(latestLocation.clone().add(0.5, 1.0, 0.5));
+            plugin.lang().send(live, "state.teleport-success", Map.of("sector", resolved));
+        }, Math.max(1L, warmup / 50L));
+
+        return TeleportResult.of(TeleportStatus.SUCCESS, resolved, warmup);
     }
 
     public CampUpgradeOutcome upgradeCamp(Player player, Camp camp, WarManager.CampUpgradeType type) {
@@ -1865,6 +1901,7 @@ public class StateManager {
             case FATIGUE -> camp.setFatigueLevel(next.level());
             case STORAGE -> camp.setStorageLevel(next.level());
             case EFFICIENCY -> camp.setEfficiencyLevel(next.level());
+            case BOUNDARY -> camp.setBoundaryLevel(next.level());
         }
         plugin.war().applyCampUpgrades(camp);
         plugin.war().markDirty();
@@ -2924,6 +2961,14 @@ public class StateManager {
         return seconds * 1000L;
     }
 
+    private long getStateTeleportWarmupMillis() {
+        long seconds = plugin.getConfig().getLong("teleport.warmup-seconds", 0L);
+        if (seconds <= 0) {
+            return 0L;
+        }
+        return seconds * 1000L;
+    }
+
     public void kickMember(Player captain, Player target) {
         String state = playerState.get(captain.getUniqueId());
         if (state == null) return;
@@ -3469,7 +3514,7 @@ public class StateManager {
             return null;
         }
 
-        double value = Math.max(1.0, radius);
+        double fallback = Math.max(1.0, radius);
         String worldName = location.getWorld().getName();
 
         for (StateData state : states.values()) {
@@ -3481,9 +3526,17 @@ public class StateManager {
                 if (!worldName.equals(stored.getWorld().getName())) {
                     continue;
                 }
-                double distance = Math.max(Math.abs(stored.getX() - location.getX()),
-                        Math.abs(stored.getZ() - location.getZ()));
-                if (distance <= value) {
+                CampBoundary boundary = getSectorBoundary(state.name, sector.getName());
+                if (boundary == null) {
+                    continue;
+                }
+                CampBoundary effective = new CampBoundary(
+                        Math.max(boundary.west(), fallback),
+                        Math.max(boundary.east(), fallback),
+                        Math.max(boundary.north(), fallback),
+                        Math.max(boundary.south(), fallback)
+                );
+                if (isWithinBoundary(location, stored, effective, 0.0)) {
                     return new CampSectorInfo(state.name, sector.getName());
                 }
             }
@@ -3518,6 +3571,130 @@ public class StateManager {
             }
         }
         return null;
+    }
+
+    public CampBoundary getSectorBoundary(String stateName, String sectorName) {
+        Camp camp = plugin.war().getCamp(stateName, sectorName);
+        double baseRadius = Math.max(1.0, plugin.getConfig().getDouble("camp.radius", 16.0));
+        if (camp == null) {
+            return new CampBoundary(baseRadius);
+        }
+        CampBoundary boundary = camp.getBoundary();
+        if (boundary == null) {
+            return new CampBoundary(baseRadius);
+        }
+        return boundary.copy();
+    }
+
+    public void recalculateCampBoundary(Camp camp, double baseRadius, double bonusRadius) {
+        if (camp == null) {
+            return;
+        }
+        Location center = getSectorLocation(camp.getStateName(), camp.getSectorName());
+        if (center == null || center.getWorld() == null) {
+            camp.setBoundary(new CampBoundary(baseRadius));
+            return;
+        }
+        double base = Math.max(1.0, baseRadius);
+        double bonus = Math.max(0.0, bonusRadius);
+        double desiredWest = base + bonus;
+        double desiredEast = base + bonus;
+        double desiredNorth = base + bonus;
+        double desiredSouth = base + bonus;
+        double gap = Math.max(0.0, plugin.getConfig().getDouble("sectors.inter-state-gap", 10.0));
+
+        for (Camp other : plugin.war().getCamps()) {
+            if (other == null || camp == other) {
+                continue;
+            }
+            Location otherCenter = getSectorLocation(other.getStateName(), other.getSectorName());
+            if (otherCenter == null || otherCenter.getWorld() == null) {
+                continue;
+            }
+            if (!center.getWorld().getName().equals(otherCenter.getWorld().getName())) {
+                continue;
+            }
+            CampBoundary otherBoundary = other.getBoundary();
+            if (otherBoundary == null) {
+                otherBoundary = new CampBoundary(base);
+            }
+            double requiredGap = camp.getStateName().equalsIgnoreCase(other.getStateName()) ? 0.0 : gap;
+            double obMinX = otherCenter.getX() - otherBoundary.west();
+            double obMaxX = otherCenter.getX() + otherBoundary.east();
+            double obMinZ = otherCenter.getZ() - otherBoundary.north();
+            double obMaxZ = otherCenter.getZ() + otherBoundary.south();
+
+            double ourMinZ = center.getZ() - desiredNorth;
+            double ourMaxZ = center.getZ() + desiredSouth;
+            double ourMinX = center.getX() - desiredWest;
+            double ourMaxX = center.getX() + desiredEast;
+
+            if (rangesOverlap(ourMinZ, ourMaxZ, obMinZ - requiredGap, obMaxZ + requiredGap)) {
+                if (otherCenter.getX() >= center.getX()) {
+                    double limit = (obMinX - requiredGap) - center.getX();
+                    desiredEast = Math.min(desiredEast, Math.max(base, limit));
+                }
+                if (otherCenter.getX() <= center.getX()) {
+                    double limit = center.getX() - (obMaxX + requiredGap);
+                    desiredWest = Math.min(desiredWest, Math.max(base, limit));
+                }
+            }
+
+            if (rangesOverlap(ourMinX, ourMaxX, obMinX - requiredGap, obMaxX + requiredGap)) {
+                if (otherCenter.getZ() >= center.getZ()) {
+                    double limit = (obMinZ - requiredGap) - center.getZ();
+                    desiredSouth = Math.min(desiredSouth, Math.max(base, limit));
+                }
+                if (otherCenter.getZ() <= center.getZ()) {
+                    double limit = center.getZ() - (obMaxZ + requiredGap);
+                    desiredNorth = Math.min(desiredNorth, Math.max(base, limit));
+                }
+            }
+        }
+
+        camp.setBoundary(new CampBoundary(desiredWest, desiredEast, desiredNorth, desiredSouth));
+    }
+
+    private boolean rangesOverlap(double minA, double maxA, double minB, double maxB) {
+        return maxA >= minB && maxB >= minA;
+    }
+
+    private boolean isWithinBoundary(Location point, Location center, CampBoundary boundary, double buffer) {
+        double minX = center.getX() - boundary.west() - buffer;
+        double maxX = center.getX() + boundary.east() + buffer;
+        double minZ = center.getZ() - boundary.north() - buffer;
+        double maxZ = center.getZ() + boundary.south() + buffer;
+        return point.getX() >= minX && point.getX() <= maxX && point.getZ() >= minZ && point.getZ() <= maxZ;
+    }
+
+    private boolean boundariesIntersect(Location aCenter, CampBoundary a, Location bCenter, CampBoundary b) {
+        double aMinX = aCenter.getX() - a.west();
+        double aMaxX = aCenter.getX() + a.east();
+        double aMinZ = aCenter.getZ() - a.north();
+        double aMaxZ = aCenter.getZ() + a.south();
+
+        double bMinX = bCenter.getX() - b.west();
+        double bMaxX = bCenter.getX() + b.east();
+        double bMinZ = bCenter.getZ() - b.north();
+        double bMaxZ = bCenter.getZ() + b.south();
+
+        return aMinX < bMaxX && aMaxX > bMinX && aMinZ < bMaxZ && aMaxZ > bMinZ;
+    }
+
+    private double boundarySeparation(Location aCenter, CampBoundary a, Location bCenter, CampBoundary b) {
+        double aMinX = aCenter.getX() - a.west();
+        double aMaxX = aCenter.getX() + a.east();
+        double aMinZ = aCenter.getZ() - a.north();
+        double aMaxZ = aCenter.getZ() + a.south();
+
+        double bMinX = bCenter.getX() - b.west();
+        double bMaxX = bCenter.getX() + b.east();
+        double bMinZ = bCenter.getZ() - b.north();
+        double bMaxZ = bCenter.getZ() + b.south();
+
+        double gapX = Math.max(0.0, Math.max(bMinX - aMaxX, aMinX - bMaxX));
+        double gapZ = Math.max(0.0, Math.max(bMinZ - aMaxZ, aMinZ - bMaxZ));
+        return Math.max(gapX, gapZ);
     }
 
     public boolean hasPendingPlacement(Player player) {
@@ -3568,8 +3745,8 @@ public class StateManager {
             }
         }
 
-        double radius = Math.max(1.0, plugin.getConfig().getDouble("camp.radius", 16.0));
-        double sameStateDistance = radius * 2.0;
+        double baseRadius = Math.max(1.0, plugin.getConfig().getDouble("camp.radius", 16.0));
+        CampBoundary pendingBoundary = new CampBoundary(baseRadius);
         double extraGap = Math.max(0.0, plugin.getConfig().getDouble("sectors.inter-state-gap", 10.0));
         String gapDisplay;
         if (Math.abs(extraGap - Math.rint(extraGap)) < 1e-9) {
@@ -3577,7 +3754,6 @@ public class StateManager {
         } else {
             gapDisplay = String.format(Locale.ROOT, "%.2f", extraGap);
         }
-        double otherStateDistance = sameStateDistance + extraGap;
 
         String worldName = location.getWorld().getName();
         for (StateData state : states.values()) {
@@ -3589,29 +3765,27 @@ public class StateManager {
                 if (!worldName.equals(stored.getWorld().getName())) {
                     continue;
                 }
-                double distance = Math.max(Math.abs(stored.getX() - location.getX()),
-                        Math.abs(stored.getZ() - location.getZ()));
+                CampBoundary boundary = getSectorBoundary(state.name, sector.getName());
+                boolean sameState = pending.getState().equals(state.name);
+                if (sameState && sector.getName().equalsIgnoreCase(pending.getSector())) {
+                    continue;
+                }
 
-                if (pending.getState().equals(state.name)) {
-                    if (sector.getName().equalsIgnoreCase(pending.getSector())) {
-                        continue;
-                    }
-                    if (distance < sameStateDistance) {
+                if (boundariesIntersect(location, pendingBoundary, stored, boundary)) {
+                    if (sameState) {
                         return PlacementValidationResult.denied("state.sector-overlap-own", Map.of(
                                 "sector", sector.getName()
                         ));
                     }
-                    continue;
-                }
-
-                if (distance < sameStateDistance) {
                     return PlacementValidationResult.denied("state.sector-overlap-other", Map.of(
                             "state", state.name,
                             "sector", sector.getName()
                     ));
                 }
 
-                if (distance < otherStateDistance) {
+                double requiredGap = sameState ? 0.0 : extraGap;
+                double separation = boundarySeparation(location, pendingBoundary, stored, boundary);
+                if (!sameState && separation < requiredGap) {
                     return PlacementValidationResult.denied("state.sector-gap-enemy", Map.of(
                             "state", state.name,
                             "sector", sector.getName(),
@@ -4963,16 +5137,22 @@ public class StateManager {
     public static class TeleportResult {
         private final TeleportStatus status;
         private final String sector;
+        private final long warmupMillis;
 
-        private TeleportResult(TeleportStatus status, String sector) {
+        private TeleportResult(TeleportStatus status, String sector, long warmupMillis) {
             this.status = status;
             this.sector = sector;
+            this.warmupMillis = warmupMillis;
         }
 
-        public static TeleportResult of(TeleportStatus status, String sector) { return new TeleportResult(status, sector); }
+        public static TeleportResult of(TeleportStatus status, String sector, long warmupMillis) {
+            return new TeleportResult(status, sector, Math.max(0L, warmupMillis));
+        }
 
         public TeleportStatus getStatus() { return status; }
 
         public String getSector() { return sector; }
+
+        public long getWarmupMillis() { return warmupMillis; }
     }
 }

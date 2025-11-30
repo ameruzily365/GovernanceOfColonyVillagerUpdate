@@ -35,6 +35,8 @@ public class Camp {
     private int fatigueLevel;
     private int storageLevel;
     private int efficiencyLevel;
+    private int boundaryLevel;
+    private CampBoundary boundary;
 
     public Camp(String id, String stateName, String sectorName, double maxHp) {
         this.id = id;
@@ -55,6 +57,8 @@ public class Camp {
         this.maxStoredItems = 0;
         this.productionIntervalMs = 0L;
         this.lastProductionAt = now;
+        this.boundaryLevel = 0;
+        this.boundary = new CampBoundary(0.0);
     }
 
     public String getId() { return id; }
@@ -254,6 +258,14 @@ public class Camp {
     public int getEfficiencyLevel() { return efficiencyLevel; }
 
     public void setEfficiencyLevel(int efficiencyLevel) { this.efficiencyLevel = Math.max(0, efficiencyLevel); }
+
+    public int getBoundaryLevel() { return boundaryLevel; }
+
+    public void setBoundaryLevel(int boundaryLevel) { this.boundaryLevel = Math.max(0, boundaryLevel); }
+
+    public CampBoundary getBoundary() { return boundary; }
+
+    public void setBoundary(CampBoundary boundary) { this.boundary = boundary == null ? null : boundary.copy(); }
 
     public void addStoredMoney(double amount) {
         if (amount <= 0.0) {

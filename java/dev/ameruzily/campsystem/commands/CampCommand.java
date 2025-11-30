@@ -3,6 +3,8 @@ package dev.ameruzily.campsystem.commands;
 import dev.ameruzily.campsystem.CampSystem;
 import dev.ameruzily.campsystem.managers.StateManager;
 import dev.ameruzily.campsystem.managers.WarManager;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.*;
@@ -31,12 +33,23 @@ public class CampCommand implements CommandExecutor {
         }
 
         if (args.length == 0) {
-            plugin.lang().send(p, "camp.help-header");
-            for (String line : plugin.lang().list("camp.help-lines")) p.sendMessage(line);
+            plugin.overviewGui().open(p);
             return true;
         }
 
         String sub = args[0].toLowerCase();
+
+        if (sub.equals("help")) {
+            int page = 1;
+            if (args.length >= 2) {
+                try {
+                    page = Integer.parseInt(args[1]);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            sendHelp(p, page);
+            return true;
+        }
 
         if (sub.equals("reload")) {
             if (!p.hasPermission("camprpg.admin")) {
@@ -59,6 +72,9 @@ public class CampCommand implements CommandExecutor {
             }
             if (plugin.gui() != null) {
                 plugin.gui().reload();
+            }
+            if (plugin.overviewGui() != null) {
+                plugin.overviewGui().reload();
             }
             if (plugin.war() != null) {
                 plugin.war().reloadSettings();
@@ -153,7 +169,11 @@ public class CampCommand implements CommandExecutor {
                 case NO_STATE -> plugin.lang().send(p, "camp.not-found");
                 case SECTOR_NOT_FOUND -> plugin.lang().send(p, "state.sector-not-found", Map.of("sector", args[1]));
                 case MISSING_LOCATION -> plugin.lang().send(p, "state.sector-move-missing", Map.of("sector", args[1]));
-                case SUCCESS -> plugin.lang().send(p, "state.teleport-success", Map.of("sector", result.getSector()));
+                case SUCCESS -> {
+                    if (result.getWarmupMillis() <= 0) {
+                        plugin.lang().send(p, "state.teleport-success", Map.of("sector", result.getSector()));
+                    }
+                }
             }
             return true;
         }
@@ -1078,6 +1098,50 @@ public class CampCommand implements CommandExecutor {
 
         plugin.lang().send(p, "camp.unknown");
         return true;
+    }
+
+    private void sendHelp(Player player, int page) {
+        List<String> lines = plugin.lang().listColored("camp.help-lines");
+        int pageSize = Math.max(1, plugin.getConfig().getInt("help.page-size", 8));
+        int totalPages = Math.max(1, (int) Math.ceil((double) lines.size() / pageSize));
+        int targetPage = Math.min(Math.max(1, page), totalPages);
+        int start = (targetPage - 1) * pageSize;
+        int end = Math.min(start + pageSize, lines.size());
+
+        plugin.lang().send(player, "camp.help-header", Map.of(
+                "page", String.valueOf(targetPage),
+                "pages", String.valueOf(totalPages)
+        ));
+        for (int i = start; i < end; i++) {
+            player.sendMessage(lines.get(i));
+        }
+
+        if (totalPages <= 1) {
+            return;
+        }
+
+        TextComponent container = new TextComponent(" ");
+        String pageText = plugin.lang().colorizeText(plugin.lang().messageOrDefault("camp.help-page", "§7第 %page%/%pages% 页"))
+                .replace("%page%", String.valueOf(targetPage))
+                .replace("%pages%", String.valueOf(totalPages));
+        container.addExtra(new TextComponent(pageText + " "));
+
+        if (targetPage > 1) {
+            String previousText = plugin.lang().colorizeText(plugin.lang().messageOrDefault("camp.help-previous", "§e<< 上一页"));
+            TextComponent previous = new TextComponent(previousText);
+            previous.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/goc help " + (targetPage - 1)));
+            container.addExtra(previous);
+            container.addExtra(new TextComponent("  "));
+        }
+
+        if (targetPage < totalPages) {
+            String nextText = plugin.lang().colorizeText(plugin.lang().messageOrDefault("camp.help-next", "§e下一页 >>"));
+            TextComponent next = new TextComponent(nextText);
+            next.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/goc help " + (targetPage + 1)));
+            container.addExtra(next);
+        }
+
+        player.spigot().sendMessage(container);
     }
 
 }

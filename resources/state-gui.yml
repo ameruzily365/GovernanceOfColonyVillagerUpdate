@@ -1,0 +1,63 @@
+gui:
+  title: "&a政权总览 &7(%page%/%pages%)"
+  rows: 4
+
+  filler:
+    item: "GRAY_STAINED_GLASS_PANE"
+    name: " "
+    lore: []
+
+  info:
+    slot: 10
+    item: "PAPER"
+    name: "&e%state%"
+    lore:
+      - "&7意识形态: &f%ideology%"
+      - "&7领袖: &f%captain%"
+      - "&7成员: &f%members%"
+      - "&7地区数量: &f%sector_count%"
+      - "&7首都: &f%capital%"
+
+  sector:
+    item: "itemsadder:gocmc:blank_slot"
+    name: "&b%sector%"
+    lore:
+      - "&7血量: &f%hp%&7/&f%hp_max%"
+      - "&7燃料: &f%fuel%&7/&f%fuel_max%"
+      - "&7资金存储: &f%money%&7/&f%money_max%"
+      - "&7物资: &f%items%&7/&f%items_max%"
+      - "&7%capital_icon%"
+      - ""
+      - "&e点击传送"
+
+  buttons:
+    previous:
+      slot: 18
+      item: "ARROW"
+      name: "&e上一页"
+      lore: []
+      action: "previous"
+    next:
+      slot: 26
+      item: "ARROW"
+      name: "&e下一页"
+      lore: []
+      action: "next"
+    close:
+      slot: 31
+      item: "BARRIER"
+      name: "&c关闭"
+      lore: []
+      action: "close"
+
+  sector-slots:
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+    - 21
+    - 22
+    - 23
+    - 24
+    - 25
