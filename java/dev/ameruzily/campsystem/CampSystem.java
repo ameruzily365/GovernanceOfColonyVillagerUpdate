@@ -81,7 +81,7 @@ public class CampSystem extends JavaPlugin {
         // 定时清理邀请
         Bukkit.getScheduler().runTaskTimer(this, () -> stateManager.cleanupInvites(), 6000L, 6000L);
 
-        getLogger().info("GovernanceOfColony 1.0.5 Enabled.");
+        getLogger().info("GovernanceOfColony 1.0.7 Enabled.");
     }
 
     @Override

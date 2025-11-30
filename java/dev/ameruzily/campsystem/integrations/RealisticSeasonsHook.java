@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -33,15 +34,25 @@ public class RealisticSeasonsHook {
         }
         String[] possibleApis = new String[] {
                 "com.casperseasons.api.SeasonsAPI",
+                "com.casperseasons.seasons.api.SeasonsAPI",
+                "com.casperseasons.realisticseasons.api.SeasonsAPI",
+                "com.casperseasons.realisticseasons.api.RealisticSeasonsAPI",
                 "me.casperseasons.api.SeasonsAPI",
+                "me.casperseasons.seasonsapi.SeasonsAPI",
+                "me.casperseasons.seasonsapi.RealisticSeasonsAPI",
                 "me.casper.realisticseasons.api.SeasonsAPI",
-                "me.casper.realisticseasons.api.RealisticSeasonsAPI"
+                "me.casper.realisticseasons.api.RealisticSeasonsAPI",
+                "SeasonsAPI"
         };
         try {
             Class<?> apiClass = null;
+            ClassLoader loader = plugin.getServer().getPluginManager()
+                    .getPlugin("RealisticSeasons")
+                    .getClass()
+                    .getClassLoader();
             for (String name : possibleApis) {
                 try {
-                    apiClass = Class.forName(name);
+                    apiClass = Class.forName(name, true, loader);
                     break;
                 } catch (ClassNotFoundException ignored) {
                 }
@@ -49,19 +60,16 @@ public class RealisticSeasonsHook {
             if (apiClass == null) {
                 throw new ClassNotFoundException("SeasonsAPI class not found");
             }
-            Method getter = apiClass.getMethod("getInstance");
-            apiInstance = getter.invoke(null);
-            try {
-                applyTemperatureMethod = apiClass.getMethod("applyPermanentTemperatureEffect", Player.class, int.class);
-                Class<?> effectClass = applyTemperatureMethod.getReturnType();
-                permanentEffect = true;
-                try {
-                    removeEffectMethod = effectClass.getMethod("remove");
-                } catch (NoSuchMethodException ignored) {
-                }
-            } catch (NoSuchMethodException ex) {
-                applyTemperatureMethod = apiClass.getMethod("setPlayerTemperature", Player.class, double.class);
-                permanentEffect = false;
+            apiInstance = resolveInstance(apiClass);
+            applyTemperatureMethod = resolveApplyMethod(apiClass);
+            if (applyTemperatureMethod == null) {
+                throw new NoSuchMethodException("No suitable temperature method");
+            }
+            Class<?> effectClass = applyTemperatureMethod.getReturnType();
+            permanentEffect = !void.class.equals(effectClass) && !Void.class.equals(effectClass)
+                    || applyTemperatureMethod.getName().toLowerCase().contains("permanent");
+            if (permanentEffect && !void.class.equals(effectClass) && !Void.class.equals(effectClass)) {
+                removeEffectMethod = resolveRemoveMethod(effectClass);
             }
         } catch (Exception ex) {
             plugin.getLogger().warning("Failed to initialize RealisticSeasons hook: " + ex.getMessage());
@@ -84,13 +92,13 @@ public class RealisticSeasonsHook {
         try {
             if (permanentEffect) {
                 clearTemperatureEffect(player);
-                int modifier = (int) Math.round(temperature);
-                Object effect = applyTemperatureMethod.invoke(apiInstance, player, modifier);
+                Object[] args = buildArgs(player, temperature);
+                Object effect = applyTemperatureMethod.invoke(apiInstance, args);
                 if (effect != null && removeEffectMethod != null) {
                     activeEffects.put(player.getUniqueId(), effect);
                 }
             } else {
-                applyTemperatureMethod.invoke(apiInstance, player, temperature);
+                applyTemperatureMethod.invoke(apiInstance, buildArgs(player, temperature));
             }
             return true;
         } catch (Exception ex) {
@@ -112,6 +120,65 @@ public class RealisticSeasonsHook {
         } catch (IllegalAccessException | InvocationTargetException ex) {
             plugin.getLogger().warning("Failed to remove RealisticSeasons temperature effect: " + ex.getMessage());
         }
+    }
+
+    private Object resolveInstance(Class<?> apiClass) throws InvocationTargetException, IllegalAccessException {
+        for (String name : Arrays.asList("getInstance", "getAPI", "api", "instance")) {
+            try {
+                Method getter = apiClass.getMethod(name);
+                if ((getter.getModifiers() & java.lang.reflect.Modifier.STATIC) != 0) {
+                    return getter.invoke(null);
+                }
+            } catch (NoSuchMethodException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private Method resolveApplyMethod(Class<?> apiClass) {
+        for (Method method : apiClass.getMethods()) {
+            String name = method.getName().toLowerCase();
+            if (!name.contains("temperature")) {
+                continue;
+            }
+            Class<?>[] params = method.getParameterTypes();
+            if (params.length != 2) {
+                continue;
+            }
+            if (!Player.class.isAssignableFrom(params[0])) {
+                continue;
+            }
+            if (!Number.class.isAssignableFrom(params[1]) && !params[1].isPrimitive()) {
+                continue;
+            }
+            if (name.contains("permanent") || name.contains("apply") || name.contains("set")) {
+                return method;
+            }
+        }
+        return null;
+    }
+
+    private Method resolveRemoveMethod(Class<?> effectClass) {
+        for (String name : Arrays.asList("remove", "cancel", "end")) {
+            try {
+                return effectClass.getMethod(name);
+            } catch (NoSuchMethodException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private Object[] buildArgs(Player player, double temperature) {
+        Class<?>[] params = applyTemperatureMethod.getParameterTypes();
+        Object value;
+        if (params[1] == int.class || params[1] == Integer.class) {
+            value = (int) Math.round(temperature);
+        } else if (params[1] == float.class || params[1] == Float.class) {
+            value = (float) temperature;
+        } else {
+            value = temperature;
+        }
+        return new Object[] { player, value };
     }
 }
 
